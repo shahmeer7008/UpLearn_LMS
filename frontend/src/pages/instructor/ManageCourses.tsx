@@ -19,7 +19,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import { getCourses, getFromStorage, saveToStorage, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 
 const ManageCourses: React.FC = () => {
@@ -33,7 +33,6 @@ const ManageCourses: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadInstructorCourses();
   }, [user]);
 
@@ -45,22 +44,15 @@ const ManageCourses: React.FC = () => {
     if (!user) return;
 
     try {
-      const allCourses = await getCourses();
-      const myCourses = allCourses.filter(course => course.instructorId === user.id);
-      setInstructorCourses(myCourses);
+      const [coursesRes, enrollmentsRes, paymentsRes] = await Promise.all([
+        axios.get(`/api/instructor/courses/${user._id}`),
+        axios.get(`/api/instructor/enrollments/${user._id}`),
+        axios.get(`/api/instructor/payments/${user._id}`)
+      ]);
 
-      // Load related data
-      const allEnrollments = getFromStorage('enrollments') || [];
-      const myEnrollments = allEnrollments.filter((enrollment: Enrollment) => 
-        myCourses.some(course => course.id === enrollment.courseId)
-      );
-      setEnrollments(myEnrollments);
-
-      const allPayments = getFromStorage('payments') || [];
-      const myPayments = allPayments.filter((payment: Payment) => 
-        myCourses.some(course => course.id === payment.courseId)
-      );
-      setPayments(myPayments);
+      setInstructorCourses(coursesRes.data);
+      setEnrollments(enrollmentsRes.data);
+      setPayments(paymentsRes.data);
 
     } catch (error) {
       console.error('Error loading instructor courses:', error);
@@ -93,8 +85,8 @@ const ManageCourses: React.FC = () => {
   };
 
   const getCourseStats = (courseId: string) => {
-    const courseEnrollments = enrollments.filter(e => e.courseId === courseId);
-    const coursePayments = payments.filter(p => p.courseId === courseId);
+    const courseEnrollments = enrollments.filter(e => e.course_id === courseId);
+    const coursePayments = payments.filter(p => p.course_id === courseId);
     
     return {
       students: courseEnrollments.length,
@@ -115,10 +107,10 @@ const ManageCourses: React.FC = () => {
   };
 
   const handleDeleteCourse = async (courseId: string) => {
-    const course = instructorCourses.find(c => c.id === courseId);
+    const course = instructorCourses.find(c => c._id === courseId);
     if (!course) return;
 
-    const enrolledStudents = enrollments.filter(e => e.courseId === courseId).length;
+    const enrolledStudents = enrollments.filter(e => e.course_id === courseId).length;
     
     const confirmed = window.confirm(
       `Are you sure you want to delete "${course.title}"? ${
@@ -131,11 +123,8 @@ const ManageCourses: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const courses = getFromStorage('courses') || [];
-      const updatedCourses = courses.filter((c: Course) => c.id !== courseId);
-      saveToStorage('courses', updatedCourses);
-
-      setInstructorCourses(prev => prev.filter(c => c.id !== courseId));
+      await axios.delete(`/api/courses/${courseId}`);
+      setInstructorCourses(prev => prev.filter(c => c._id !== courseId));
       showSuccess('Course deleted successfully');
     } catch (error) {
       showError('Failed to delete course');
@@ -252,10 +241,10 @@ const ManageCourses: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {filteredCourses.map((course) => {
-            const stats = getCourseStats(course.id);
+            const stats = getCourseStats(course._id);
             
             return (
-              <Card key={course.id} className="hover:shadow-lg transition-shadow duration-200">
+              <Card key={course._id} className="hover:shadow-lg transition-shadow duration-200">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -300,23 +289,23 @@ const ManageCourses: React.FC = () => {
                     </div>
 
                     <div className="ml-6 flex flex-col space-y-2">
-                      <Link to={`/courses/${course.id}`}>
+                      <Link to={`/courses/${course._id}`}>
                         <Button variant="outline" size="sm" className="w-full">
                           <Eye className="h-4 w-4 mr-2" />
                           View
                         </Button>
                       </Link>
-                      <Link to={`/instructor/courses/${course.id}/edit`}>
+                      <Link to={`/instructor/courses/${course._id}/edit`}>
                         <Button variant="outline" size="sm" className="w-full">
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
                       </Link>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="w-full text-red-600 hover:text-red-700"
-                        onClick={() => handleDeleteCourse(course.id)}
+                        onClick={() => handleDeleteCourse(course._id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete

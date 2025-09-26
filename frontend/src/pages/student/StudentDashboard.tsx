@@ -73,7 +73,7 @@ const StudentDashboard: React.FC = () => {
 
   const getTotalLearningHours = () => {
     return enrolledCourses.reduce((total, course) => {
-      const moduleHours = course.modules.reduce((sum, module) => sum + (module.duration || 30), 0);
+      const moduleHours = course.duration
       return total + (moduleHours / 60);
     }, 0);
   };
@@ -206,11 +206,11 @@ const StudentDashboard: React.FC = () => {
                           <div className="flex items-center space-x-4 mb-4">
                             <div className="flex items-center space-x-1">
                               <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                              <span className="text-sm">{course.ratingAverage}</span>
+                              <span className="text-sm">{course.rating}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <Users className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{course.enrollmentCount} students</span>
+                              <span className="text-sm">{course.tags.join(', ')}</span>
                             </div>
                           </div>
                           <div className="space-y-2">
@@ -219,7 +219,7 @@ const StudentDashboard: React.FC = () => {
                                 Progress: {progress}%
                               </span>
                               <span className="text-sm text-muted-foreground">
-                                {course.modules.length} modules
+                                {course.duration} hours
                               </span>
                             </div>
                             <Progress value={progress} className="h-2" />
@@ -266,7 +266,7 @@ const StudentDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1">
                       <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                      <span className="text-xs">{course.ratingAverage}</span>
+                      <span className="text-xs">{course.rating}</span>
                     </div>
                     <Link to={`/courses/${course._id}`}>
                       <Button size="sm" variant="outline">View</Button>

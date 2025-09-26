@@ -20,7 +20,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { Course } from '@/types';
-import { getCourses } from '@/data/mockData';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 
 interface SearchFilters {
@@ -125,7 +125,8 @@ const AdvancedSearchBar: React.FC<AdvancedSearchBarProps> = ({
   const performSearch = async () => {
     setIsLoading(true);
     try {
-      const courses = await getCourses();
+      const res = await axios.get('/api/courses');
+      const courses = res.data;
       
       let filteredCourses = courses.filter(course => 
         course.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -169,7 +170,7 @@ const AdvancedSearchBar: React.FC<AdvancedSearchBarProps> = ({
 
       const searchResults: SearchResult[] = filteredCourses.map(course => ({
         type: 'course',
-        id: course.id,
+        id: course._id,
         title: course.title,
         description: course.description,
         category: course.category,

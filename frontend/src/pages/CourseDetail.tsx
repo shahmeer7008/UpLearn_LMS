@@ -20,7 +20,7 @@ import {
   Shield
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import { getCourseById, getEnrollmentsByUserId, getFromStorage, saveToStorage } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 import PaymentModal from '@/components/PaymentModal';
 import ReviewSystem from '@/components/ReviewSystem';
@@ -45,24 +45,16 @@ const CourseDetail: React.FC = () => {
     if (!id) return;
 
     try {
-      const courseData = await getCourseById(id);
-      setCourse(courseData);
+      const courseRes = await axios.get(`/api/courses/${id}`);
+      setCourse(courseRes.data);
 
       if (user) {
-        const enrollments = await getEnrollmentsByUserId(user.id);
-        const userEnrollment = enrollments.find(e => e.courseId === id);
-        setEnrollment(userEnrollment || null);
-
-        // Check if user has paid for this course
-        if (courseData && courseData.pricing > 0) {
-          const payments = getFromStorage('payments') || [];
-          const userPayment = payments.find((p: Payment) => 
-            p.userId === user.id && p.courseId === id && p.status === 'completed'
-          );
-          setHasPayment(!!userPayment);
-        } else {
-          setHasPayment(true); // Free courses don't require payment
-        }
+        const [enrollmentRes, paymentRes] = await Promise.all([
+          axios.get(`/api/student/enrollment/${user._id}/${id}`),
+          axios.get(`/api/student/payment/${user._id}/${id}`)
+        ]);
+        setEnrollment(enrollmentRes.data);
+        setHasPayment(!!paymentRes.data);
       }
     } catch (error) {
       console.error('Error loading course data:', error);
@@ -85,21 +77,11 @@ const CourseDetail: React.FC = () => {
 
     // For free courses or already paid courses, enroll directly
     try {
-      const enrollments = getFromStorage('enrollments') || [];
-      const newEnrollment: Enrollment = {
-        id: `e${Date.now()}`,
-        userId: user.id,
-        courseId: course.id,
-        progress: 0,
-        completionStatus: 'in-progress',
-        enrollmentDate: new Date().toISOString(),
-        lastAccessedDate: new Date().toISOString(),
-        completedModules: []
-      };
-      
-      enrollments.push(newEnrollment);
-      saveToStorage('enrollments', enrollments);
-      setEnrollment(newEnrollment);
+      const res = await axios.post('/api/enrollments', {
+        user_id: user._id,
+        course_id: course._id,
+      });
+      setEnrollment(res.data);
 
       showSuccess('Successfully enrolled in course!');
     } catch (error) {
@@ -111,38 +93,20 @@ const CourseDetail: React.FC = () => {
     if (!user || !course) return;
 
     try {
-      // Create payment record
-      const payments = getFromStorage('payments') || [];
-      const newPayment: Payment = {
-        id: paymentData.id,
-        userId: user.id,
-        courseId: course.id,
+      await axios.post('/api/payments', {
+        user_id: user._id,
+        course_id: course._id,
         amount: course.pricing,
         status: 'completed',
-        transactionId: paymentData.id,
-        paymentDate: new Date().toISOString(),
-        courseName: course.title
-      };
-      payments.push(newPayment);
-      saveToStorage('payments', payments);
+        transaction_id: paymentData.transaction_id,
+      });
 
-      // Create enrollment
-      const enrollments = getFromStorage('enrollments') || [];
-      const newEnrollment: Enrollment = {
-        id: `e${Date.now()}`,
-        userId: user.id,
-        courseId: course.id,
-        progress: 0,
-        completionStatus: 'in-progress',
-        enrollmentDate: new Date().toISOString(),
-        lastAccessedDate: new Date().toISOString(),
-        completedModules: []
-      };
+      const res = await axios.post('/api/enrollments', {
+        user_id: user._id,
+        course_id: course._id,
+      });
       
-      enrollments.push(newEnrollment);
-      saveToStorage('enrollments', enrollments);
-      
-      setEnrollment(newEnrollment);
+      setEnrollment(res.data);
       setHasPayment(true);
     } catch (error) {
       showError('Failed to process enrollment after payment');
@@ -162,8 +126,8 @@ const CourseDetail: React.FC = () => {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return price === 0 ? 'Free' : `$${price.toFixed(2)}`;
+  const formatPrice = (pricing: number) => {
+    return pricing === 0 ? 'Free' : `$${pricing.toFixed(2)}`;
   };
 
   const isEnrolled = !!enrollment;
@@ -212,35 +176,35 @@ const CourseDetail: React.FC = () => {
             <div className="flex items-center space-x-6 mb-6">
               <div className="flex items-center space-x-1">
                 <Star className="h-5 w-5 text-yellow-400 fill-current" />
-                <span className="font-medium">{course.ratingAverage}</span>
+                <span className="font-medium">{course.rating}</span>
                 <span className="text-gray-600 dark:text-gray-400">rating</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Users className="h-5 w-5 text-gray-400" />
-                <span>{course.enrollmentCount.toLocaleString()} students</span>
+                <span>0 students</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-5 w-5 text-gray-400" />
-                <span>{course.modules.length} modules</span>
+                <span>{course.duration} hours</span>
               </div>
             </div>
 
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-400">
                 Created by <span className="font-medium text-gray-900 dark:text-white">
-                  {course.instructorName}
+                  {(course.instructorId as any).name}
                 </span>
               </p>
             </div>
           </div>
 
           {/* Preview Video - Always show for marketing */}
-          {course.previewVideoUrl && (
+          {course.coverImage && (
             <div className="mb-8">
               <h2 className="text-xl font-bold mb-4">Course Preview</h2>
               <div className="aspect-video rounded-lg overflow-hidden">
                 <iframe
-                  src={course.previewVideoUrl}
+                  src={course.coverImage}
                   title="Course Preview"
                   className="w-full h-full"
                   allowFullScreen
@@ -254,30 +218,7 @@ const CourseDetail: React.FC = () => {
             <h2 className="text-xl font-bold mb-4">Course Content</h2>
             <Card>
               <CardContent className="p-0">
-                {course.modules.map((module, index) => (
-                  <div key={module.id}>
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex items-center space-x-3">
-                        {getModuleIcon(module.type)}
-                        <div>
-                          <h3 className="font-medium">{module.title}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                            {module.type}
-                            {module.duration && ` • ${module.duration} min`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {canAccessContent && isEnrolled ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-gray-400" />
-                        )}
-                      </div>
-                    </div>
-                    {index < course.modules.length - 1 && <Separator />}
-                  </div>
-                ))}
+                {/* Modules will be fetched separately */}
               </CardContent>
             </Card>
 
@@ -300,7 +241,7 @@ const CourseDetail: React.FC = () => {
 
           {/* Reviews Section */}
           <div className="mb-8">
-            <ReviewSystem courseId={course.id} userEnrollment={enrollment} />
+            <ReviewSystem course_id={course._id} userEnrollment={enrollment} />
           </div>
         </div>
 
@@ -330,7 +271,7 @@ const CourseDetail: React.FC = () => {
                   </Alert>
                   <Button 
                     className="w-full" 
-                    onClick={() => navigate(`/courses/${course.id}/learn`)}
+                    onClick={() => navigate(`/courses/${course._id}/learn`)}
                   >
                     Continue Learning
                   </Button>
@@ -370,15 +311,15 @@ const CourseDetail: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center space-x-2">
                     <PlayCircle className="h-4 w-4 text-gray-400" />
-                    <span>{course.modules.filter(m => m.type === 'video').length} video lessons</span>
+                    <span>{course.duration} hours of video</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <FileText className="h-4 w-4 text-gray-400" />
-                    <span>{course.modules.filter(m => m.type === 'pdf').length} downloadable resources</span>
+                    <span>Downloadable resources</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <HelpCircle className="h-4 w-4 text-gray-400" />
-                    <span>{course.modules.filter(m => m.type === 'quiz').length} quizzes</span>
+                    <span>Quizzes</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Award className="h-4 w-4 text-gray-400" />

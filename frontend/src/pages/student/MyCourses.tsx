@@ -18,7 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import { getCourses, getEnrollmentsByUserId, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 
 const MyCourses: React.FC = () => {
   const { user } = useAuth();
@@ -30,7 +30,6 @@ const MyCourses: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadMyCourses();
   }, [user]);
 
@@ -42,15 +41,15 @@ const MyCourses: React.FC = () => {
     if (!user) return;
 
     try {
-      const [allCourses, userEnrollments] = await Promise.all([
-        getCourses(),
-        getEnrollmentsByUserId(user.id)
+      const [coursesRes, enrollmentsRes] = await Promise.all([
+        axios.get('/api/courses'),
+        axios.get(`/api/student/enrollments/${user._id}`)
       ]);
 
-      setEnrollments(userEnrollments);
+      setEnrollments(enrollmentsRes.data);
       
-      const enrolledCourseIds = userEnrollments.map(e => e.courseId);
-      const enrolled = allCourses.filter(course => enrolledCourseIds.includes(course.id));
+      const enrolledCourseIds = enrollmentsRes.data.map((e: Enrollment) => e.course_id);
+      const enrolled = coursesRes.data.filter((course: Course) => enrolledCourseIds.includes(course._id));
       setEnrolledCourses(enrolled);
 
     } catch (error) {
@@ -75,7 +74,7 @@ const MyCourses: React.FC = () => {
     // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(course => {
-        const enrollment = enrollments.find(e => e.courseId === course.id);
+        const enrollment = enrollments.find(e => e.course_id === course._id);
         return enrollment?.completionStatus === statusFilter;
       });
     }
@@ -84,7 +83,7 @@ const MyCourses: React.FC = () => {
   };
 
   const getEnrollmentData = (courseId: string) => {
-    return enrollments.find(e => e.courseId === courseId);
+    return enrollments.find(e => e.course_id === courseId);
   };
 
   const formatDate = (dateString: string) => {
@@ -197,11 +196,11 @@ const MyCourses: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredCourses.map((course) => {
-            const enrollment = getEnrollmentData(course.id);
+            const enrollment = getEnrollmentData(course._id);
             const progress = enrollment?.progress || 0;
             
             return (
-              <Card key={course.id} className="hover:shadow-lg transition-shadow duration-200">
+              <Card key={course._id} className="hover:shadow-lg transition-shadow duration-200">
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <Badge variant="secondary" className="mb-2">
@@ -245,13 +244,13 @@ const MyCourses: React.FC = () => {
                   </div>
 
                   <div className="flex space-x-2">
-                    <Link to={`/courses/${course.id}/learn`} className="flex-1">
+                    <Link to={`/courses/${course._id}/learn`} className="flex-1">
                       <Button className="w-full flex items-center space-x-2">
                         <Play className="h-4 w-4" />
                         <span>{progress > 0 ? 'Continue' : 'Start'}</span>
                       </Button>
                     </Link>
-                    <Link to={`/courses/${course.id}`}>
+                    <Link to={`/courses/${course._id}`}>
                       <Button variant="outline" size="icon">
                         <BookOpen className="h-4 w-4" />
                       </Button>

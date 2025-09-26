@@ -13,7 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Course } from '@/types';
-import { getCourses, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 import CourseCard from '@/components/CourseCard';
 import AdvancedSearchBar from '@/components/AdvancedSearchBar';
 import CourseRecommendations from '@/components/CourseRecommendations';
@@ -29,7 +29,6 @@ const Courses: React.FC = () => {
   const [searchFilters, setSearchFilters] = useState<any>(null);
 
   useEffect(() => {
-    initializeMockData();
     loadCourses();
   }, []);
 
@@ -39,8 +38,8 @@ const Courses: React.FC = () => {
 
   const loadCourses = async () => {
     try {
-      const coursesData = await getCourses();
-      setCourses(coursesData);
+      const res = await axios.get('/api/courses');
+      setCourses(res.data);
     } catch (error) {
       console.error('Error loading courses:', error);
     } finally {
@@ -189,7 +188,7 @@ const Courses: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {featuredCourses.map((course) => (
                   <CourseCard
-                    key={course.id}
+                    key={course._id}
                     course={course}
                     variant="detailed"
                     showInstructor={true}
@@ -314,7 +313,7 @@ const Courses: React.FC = () => {
             }>
               {filteredCourses.map((course) => (
                 <CourseCard
-                  key={course.id}
+                  key={course._id}
                   course={course}
                   variant={viewMode === 'list' ? 'compact' : 'default'}
                   showInstructor={true}

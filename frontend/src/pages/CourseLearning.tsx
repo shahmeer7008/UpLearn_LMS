@@ -22,7 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Course, Enrollment, Module, Payment } from '@/types';
-import { getCourseById, getEnrollmentsByUserId, getFromStorage, saveToStorage } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 import QuizPlayer from '@/components/QuizPlayer';
 import PaymentModal from '@/components/PaymentModal';
@@ -49,43 +49,28 @@ const CourseLearning: React.FC = () => {
     if (!id || !user) return;
 
     try {
-      const courseData = await getCourseById(id);
-      if (!courseData) {
+      const [courseRes, enrollmentRes, paymentRes] = await Promise.all([
+        axios.get(`/api/courses/${id}`),
+        axios.get(`/api/student/enrollment/${user._id}/${id}`),
+        axios.get(`/api/student/payment/${user._id}/${id}`)
+      ]);
+
+      if (!courseRes.data) {
         navigate('/courses');
         return;
       }
-      setCourse(courseData);
+      setCourse(courseRes.data);
 
-      const enrollments = await getEnrollmentsByUserId(user.id);
-      const userEnrollment = enrollments.find(e => e.courseId === id);
-      
-      if (!userEnrollment) {
+      if (!enrollmentRes.data) {
         navigate(`/courses/${id}`);
         return;
       }
-      
-      setEnrollment(userEnrollment);
+      setEnrollment(enrollmentRes.data);
 
-      // Check payment status for paid courses
-      if (courseData.pricing > 0) {
-        const payments = getFromStorage('payments') || [];
-        const userPayment = payments.find((p: Payment) => 
-          p.userId === user.id && p.courseId === id && p.status === 'completed'
-        );
-        
-        if (!userPayment) {
-          // User is enrolled but hasn't paid - shouldn't happen in normal flow
-          setHasPayment(false);
-          return;
-        }
-        setHasPayment(true);
-      } else {
-        setHasPayment(true); // Free courses
-      }
+      setHasPayment(!!paymentRes.data);
 
-      // Set current module based on progress
-      const lastCompletedIndex = courseData.modules.findIndex(
-        module => !userEnrollment.completedModules.includes(module.id)
+      const lastCompletedIndex = courseRes.data.modules.findIndex(
+        (module: Module) => !enrollmentRes.data.completedModules.includes(module._id)
       );
       setCurrentModuleIndex(lastCompletedIndex === -1 ? 0 : lastCompletedIndex);
 
@@ -101,20 +86,13 @@ const CourseLearning: React.FC = () => {
     if (!user || !course) return;
 
     try {
-      // Create payment record
-      const payments = getFromStorage('payments') || [];
-      const newPayment: Payment = {
-        id: paymentData.id,
-        userId: user.id,
-        courseId: course.id,
+      await axios.post('/api/payments', {
+        user_id: user._id,
+        course_id: course._id,
         amount: course.pricing,
         status: 'completed',
-        transactionId: paymentData.id,
-        paymentDate: new Date().toISOString(),
-        courseName: course.title
-      };
-      payments.push(newPayment);
-      saveToStorage('payments', payments);
+        transaction_id: paymentData.id,
+      });
       
       setHasPayment(true);
       showSuccess('Payment successful! You now have full access to the course.');
@@ -127,57 +105,37 @@ const CourseLearning: React.FC = () => {
     if (!enrollment || !course || !user) return;
 
     try {
-      const enrollments = getFromStorage('enrollments') || [];
-      const updatedEnrollments = enrollments.map((e: Enrollment) => {
-        if (e.id === enrollment.id) {
-          const completedModules = [...e.completedModules];
-          if (!completedModules.includes(moduleId)) {
-            completedModules.push(moduleId);
-          }
-          
-          const progress = Math.round((completedModules.length / course.modules.length) * 100);
-          const completionStatus = progress === 100 ? 'completed' : 'in-progress';
+      const completedModules = [...enrollment.completedModules];
+      if (!completedModules.includes(moduleId)) {
+        completedModules.push(moduleId);
+      }
+      
+      const progress = Math.round((completedModules.length / course.modules.length) * 100);
+      const completionStatus = progress === 100 ? 'completed' : 'in-progress';
 
-          return {
-            ...e,
-            completedModules,
-            progress,
-            completionStatus,
-            lastAccessedDate: new Date().toISOString()
-          };
-        }
-        return e;
+      const res = await axios.put(`/api/student/enrollment/${enrollment._id}`, {
+        completedModules,
+        progress,
+        completionStatus,
       });
 
-      saveToStorage('enrollments', updatedEnrollments);
-      
-      const updatedEnrollment = updatedEnrollments.find((e: Enrollment) => e.id === enrollment.id);
-      setEnrollment(updatedEnrollment);
+      setEnrollment(res.data);
 
-      // Generate certificate if course is completed
-      if (updatedEnrollment?.progress === 100) {
-        const certificates = getFromStorage('certificates') || [];
-        const newCertificate = {
-          id: `cert_${Date.now()}`,
-          userId: user.id,
-          courseId: course.id,
-          courseName: course.title,
-          completionDate: new Date().toISOString(),
-          certificateUrl: `/certificates/cert-${course.id}-${user.id}.pdf`,
-          verificationId: `CERT-${Date.now()}`
-        };
-        certificates.push(newCertificate);
-        saveToStorage('certificates', certificates);
+      if (res.data.progress === 100) {
+        await axios.post('/api/certificates', {
+          user_id: user._id,
+          course_id: course._id,
+          certificate_url: `/certificates/cert-${course._id}-${user._id}.pdf`,
+        });
         
         showSuccess('🎉 Congratulations! You completed the course and earned a certificate!');
       } else {
-        const message = quizScore !== undefined 
+        const message = quizScore !== undefined
           ? `Module completed! Quiz score: ${quizScore}%`
           : 'Module completed!';
         showSuccess(message);
       }
 
-      // Hide quiz if it was shown
       setShowQuiz(false);
 
     } catch (error) {
@@ -211,7 +169,7 @@ const CourseLearning: React.FC = () => {
 
   const handleQuizComplete = (score: number, passed: boolean) => {
     if (passed) {
-      markModuleComplete(currentModule.id, score);
+      markModuleComplete(currentModule._id, score);
     } else {
       showError(`Quiz failed with ${score}%. You need 70% to pass. Try again!`);
     }
@@ -466,7 +424,7 @@ const CourseLearning: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     {getModuleIcon(currentModule.type)}
                     <CardTitle>{currentModule.title}</CardTitle>
-                    {isModuleCompleted(currentModule.id) && (
+                    {isModuleCompleted(currentModule._id) && (
                       <CheckCircle className="h-5 w-5 text-green-500" />
                     )}
                   </div>
@@ -490,8 +448,8 @@ const CourseLearning: React.FC = () => {
                     </Button>
                     
                     <div className="flex space-x-2">
-                      {!isModuleCompleted(currentModule.id) && currentModule.type !== 'quiz' && (
-                        <Button onClick={() => markModuleComplete(currentModule.id)}>
+                      {!isModuleCompleted(currentModule._id) && currentModule.type !== 'quiz' && (
+                        <Button onClick={() => markModuleComplete(currentModule._id)}>
                           Mark Complete
                         </Button>
                       )}
@@ -522,7 +480,7 @@ const CourseLearning: React.FC = () => {
               <CardContent className="p-0">
                 <div className="space-y-1">
                   {course.modules.map((module, index) => (
-                    <div key={module.id}>
+                    <div key={module._id}>
                       <button
                         onClick={() => navigateToModule(index)}
                         className={`w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
@@ -536,7 +494,7 @@ const CourseLearning: React.FC = () => {
                           <div className="flex-shrink-0">
                             {!hasPayment ? (
                               <Lock className="h-4 w-4 text-gray-400" />
-                            ) : isModuleCompleted(module.id) ? (
+                            ) : isModuleCompleted(module._id) ? (
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             ) : index === currentModuleIndex ? (
                               getModuleIcon(module.type)

@@ -18,7 +18,7 @@ import {
   Lock
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import { getCourseById, getEnrollmentsByUserId, getFromStorage, saveToStorage } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 import ReviewSystem from '@/components/ReviewSystem';
 
@@ -41,12 +41,12 @@ const CourseDetail: React.FC = () => {
     if (!id) return;
 
     try {
-      const courseData = await getCourseById(id);
-      setCourse(courseData);
+      const courseResponse = await axios.get(`/api/courses/${id}`);
+      setCourse(courseResponse.data);
 
       if (user) {
-        const enrollments = await getEnrollmentsByUserId(user.id);
-        const userEnrollment = enrollments.find(e => e.courseId === id);
+        const enrollmentResponse = await axios.get(`/api/student/enrollments`);
+        const userEnrollment = enrollmentResponse.data.find((e: Enrollment) => e.course_id === id);
         setEnrollment(userEnrollment || null);
       }
     } catch (error) {
@@ -65,53 +65,8 @@ const CourseDetail: React.FC = () => {
     setIsEnrolling(true);
 
     try {
-      if (course.pricing > 0) {
-        // Simulate payment process
-        const confirmed = window.confirm(
-          `This course costs $${course.pricing.toFixed(2)}. Proceed with payment?`
-        );
-        
-        if (!confirmed) {
-          setIsEnrolling(false);
-          return;
-        }
-
-        // Mock payment processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Create payment record
-        const payments = getFromStorage('payments') || [];
-        const newPayment = {
-          id: `p${Date.now()}`,
-          userId: user.id,
-          courseId: course.id,
-          amount: course.pricing,
-          status: 'completed',
-          transactionId: `txn_${Date.now()}`,
-          paymentDate: new Date().toISOString(),
-          courseName: course.title
-        };
-        payments.push(newPayment);
-        saveToStorage('payments', payments);
-      }
-
-      // Create enrollment
-      const enrollments = getFromStorage('enrollments') || [];
-      const newEnrollment: Enrollment = {
-        id: `e${Date.now()}`,
-        userId: user.id,
-        courseId: course.id,
-        progress: 0,
-        completionStatus: 'in-progress',
-        enrollmentDate: new Date().toISOString(),
-        lastAccessedDate: new Date().toISOString(),
-        completedModules: []
-      };
-      
-      enrollments.push(newEnrollment);
-      saveToStorage('enrollments', enrollments);
-      setEnrollment(newEnrollment);
-
+      const response = await axios.post(`/api/courses/${course._id}/enroll`);
+      setEnrollment(response.data);
       showSuccess('Successfully enrolled in course!');
     } catch (error) {
       showError('Failed to enroll in course');
@@ -182,35 +137,35 @@ const CourseDetail: React.FC = () => {
             <div className="flex items-center space-x-6 mb-6">
               <div className="flex items-center space-x-1">
                 <Star className="h-5 w-5 text-yellow-400 fill-current" />
-                <span className="font-medium">{course.ratingAverage}</span>
+                <span className="font-medium">{course.rating}</span>
                 <span className="text-gray-600 dark:text-gray-400">rating</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Users className="h-5 w-5 text-gray-400" />
-                <span>{course.enrollmentCount.toLocaleString()} students</span>
+                <span>0 students</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-5 w-5 text-gray-400" />
-                <span>{course.modules.length} modules</span>
+                <span>{course.duration} hours</span>
               </div>
             </div>
 
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-400">
                 Created by <span className="font-medium text-gray-900 dark:text-white">
-                  {course.instructorName}
+                  {(course.instructorId as any).name}
                 </span>
               </p>
             </div>
           </div>
 
           {/* Preview Video */}
-          {course.previewVideoUrl && (
+          {course.coverImage && (
             <div className="mb-8">
               <h2 className="text-xl font-bold mb-4">Course Preview</h2>
               <div className="aspect-video rounded-lg overflow-hidden">
                 <iframe
-                  src={course.previewVideoUrl}
+                  src={course.coverImage}
                   title="Course Preview"
                   className="w-full h-full"
                   allowFullScreen
@@ -224,37 +179,14 @@ const CourseDetail: React.FC = () => {
             <h2 className="text-xl font-bold mb-4">Course Content</h2>
             <Card>
               <CardContent className="p-0">
-                {course.modules.map((module, index) => (
-                  <div key={module.id}>
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex items-center space-x-3">
-                        {getModuleIcon(module.type)}
-                        <div>
-                          <h3 className="font-medium">{module.title}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                            {module.type}
-                            {module.duration && ` • ${module.duration} min`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {isEnrolled ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-gray-400" />
-                        )}
-                      </div>
-                    </div>
-                    {index < course.modules.length - 1 && <Separator />}
-                  </div>
-                ))}
+                {/* Modules will be fetched separately */}
               </CardContent>
             </Card>
           </div>
 
           {/* Reviews Section */}
           <div className="mb-8">
-            <ReviewSystem courseId={course.id} userEnrollment={enrollment} />
+            <ReviewSystem course_id={course._id} userEnrollment={enrollment} />
           </div>
         </div>
 
@@ -284,7 +216,7 @@ const CourseDetail: React.FC = () => {
                   </Alert>
                   <Button 
                     className="w-full" 
-                    onClick={() => navigate(`/courses/${course.id}/learn`)}
+                    onClick={() => navigate(`/courses/${course._id}/learn`)}
                   >
                     Continue Learning
                   </Button>
@@ -311,15 +243,15 @@ const CourseDetail: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center space-x-2">
                     <PlayCircle className="h-4 w-4 text-gray-400" />
-                    <span>{course.modules.filter(m => m.type === 'video').length} video lessons</span>
+                    <span>{course.duration} hours of video</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <FileText className="h-4 w-4 text-gray-400" />
-                    <span>{course.modules.filter(m => m.type === 'pdf').length} downloadable resources</span>
+                    <span>Downloadable resources</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <HelpCircle className="h-4 w-4 text-gray-400" />
-                    <span>{course.modules.filter(m => m.type === 'quiz').length} quizzes</span>
+                    <span>Quizzes</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Award className="h-4 w-4 text-gray-400" />

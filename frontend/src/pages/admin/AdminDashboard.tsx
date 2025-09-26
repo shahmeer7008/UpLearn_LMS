@@ -224,11 +224,11 @@ const AdminDashboard: React.FC = () => {
                           {course.description}
                         </p>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>By {course.instructorName}</span>
+                          <span>By {course.instructorId}</span>
                           <span>•</span>
                           <span>{course.category}</span>
                           <span>•</span>
-                          <span>{course.modules.length} modules</span>
+                          <span>{course.duration} hours</span>
                           <span>•</span>
                           <span>{course.pricing === 0 ? 'Free' : `$${course.pricing}`}</span>
                         </div>

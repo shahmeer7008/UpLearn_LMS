@@ -23,7 +23,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Course, Payment } from '@/types';
-import { getCourses, getFromStorage, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 
 interface EarningsData {
   totalEarnings: number;
@@ -53,7 +53,6 @@ const EarningsDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadEarningsData();
   }, [user]);
 
@@ -61,58 +60,33 @@ const EarningsDashboard: React.FC = () => {
     if (!user) return;
 
     try {
-      const allCourses = await getCourses();
-      const instructorCourses = allCourses.filter(course => course.instructorId === user.id);
-      
-      const allPayments = getFromStorage('payments') || [];
-      const instructorPayments = allPayments.filter((payment: Payment) => 
-        instructorCourses.some(course => course.id === payment.courseId)
-      );
+      const [coursesRes, paymentsRes] = await Promise.all([
+        axios.get(`/api/instructor/courses/${user._id}`),
+        axios.get(`/api/instructor/payments/${user._id}`)
+      ]);
 
-      // Calculate earnings by course
-      const courseEarnings = instructorCourses.map(course => {
-        const coursePayments = instructorPayments.filter((p: Payment) => p.courseId === course.id);
+      const instructorCourses = coursesRes.data;
+      const instructorPayments = paymentsRes.data;
+
+      const courseEarnings = instructorCourses.map((course: Course) => {
+        const coursePayments = instructorPayments.filter((p: Payment) => p.course_id === course._id);
         const revenue = coursePayments.reduce((sum: number, p: Payment) => sum + p.amount, 0);
         const students = coursePayments.length;
         return { course, revenue, students };
-      }).sort((a, b) => b.revenue - a.revenue);
+      }).sort((a: any, b: any) => b.revenue - a.revenue);
 
-      // Generate monthly data for the last 12 months
       const monthlyData = [];
       for (let i = 11; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        const earnings = Math.random() * 2000 + 500; // Mock data
-        monthlyData.push({ month: monthName, earnings: Math.round(earnings) });
+        const earnings = instructorPayments
+          .filter((p: Payment) => new Date(p.paymentDate).getMonth() === date.getMonth())
+          .reduce((sum: number, p: Payment) => sum + p.amount, 0);
+        monthlyData.push({ month: monthName, earnings });
       }
 
-      // Mock payout history
-      const payoutHistory: PayoutRecord[] = [
-        {
-          id: 'payout_1',
-          amount: 1250.00,
-          status: 'completed',
-          requestDate: '2024-01-15T10:00:00Z',
-          completedDate: '2024-01-17T14:30:00Z',
-          method: 'Bank Transfer'
-        },
-        {
-          id: 'payout_2',
-          amount: 890.50,
-          status: 'completed',
-          requestDate: '2024-01-01T09:00:00Z',
-          completedDate: '2024-01-03T11:15:00Z',
-          method: 'PayPal'
-        },
-        {
-          id: 'payout_3',
-          amount: 675.25,
-          status: 'pending',
-          requestDate: '2024-01-20T16:45:00Z',
-          method: 'Bank Transfer'
-        }
-      ];
+      const payoutHistory: PayoutRecord[] = [];
 
       const totalEarnings = instructorPayments.reduce((sum: number, p: Payment) => sum + p.amount, 0);
       const currentMonth = new Date().getMonth();
@@ -123,10 +97,8 @@ const EarningsDashboard: React.FC = () => {
       const data: EarningsData = {
         totalEarnings,
         monthlyEarnings,
-        pendingPayouts: payoutHistory
-          .filter(p => p.status === 'pending')
-          .reduce((sum, p) => sum + p.amount, 0),
-        availableBalance: totalEarnings * 0.15, // Mock available balance
+        pendingPayouts: 0,
+        availableBalance: totalEarnings,
         courseEarnings,
         recentTransactions: instructorPayments.slice(0, 10),
         monthlyData,
@@ -364,7 +336,7 @@ const EarningsDashboard: React.FC = () => {
             <CardContent>
               <div className="space-y-4">
                 {earningsData.courseEarnings.map((courseData, index) => (
-                  <div key={courseData.course.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={courseData.course._id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
@@ -423,7 +395,7 @@ const EarningsDashboard: React.FC = () => {
             <CardContent>
               <div className="space-y-4">
                 {earningsData.recentTransactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={transaction.transaction_id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
                         <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -431,7 +403,7 @@ const EarningsDashboard: React.FC = () => {
                       <div>
                         <h3 className="font-medium">{transaction.courseName}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Transaction ID: {transaction.transactionId}
+                          Transaction ID: {transaction.transaction_id}
                         </p>
                       </div>
                     </div>

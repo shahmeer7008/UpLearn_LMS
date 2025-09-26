@@ -14,7 +14,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Course } from '@/types';
-import { getCourses } from '@/data/mockData';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 
 interface SearchResult {
@@ -79,13 +79,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const performSearch = async () => {
     setIsLoading(true);
     try {
-      const courses = await getCourses();
+      const res = await axios.get('/api/courses');
+      const courses = res.data;
       
       let filteredCourses = courses.filter(course => 
         course.title.toLowerCase().includes(query.toLowerCase()) ||
         course.description.toLowerCase().includes(query.toLowerCase()) ||
         course.category.toLowerCase().includes(query.toLowerCase()) ||
-        course.instructorName.toLowerCase().includes(query.toLowerCase())
+        (course.instructorId as any).name.toLowerCase().includes(query.toLowerCase())
       );
 
       // Apply filters
@@ -98,10 +99,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
       if (filters.priceRange) {
         filteredCourses = filteredCourses.filter(course => {
           switch (filters.priceRange) {
-            case 'free': return course.pricing === 0;
-            case 'under50': return course.pricing > 0 && course.pricing < 50;
-            case 'under100': return course.pricing >= 50 && course.pricing < 100;
-            case 'over100': return course.pricing >= 100;
+            case 'free': return course.price === 0;
+            case 'under50': return course.price > 0 && course.price < 50;
+            case 'under100': return course.price >= 50 && course.price < 100;
+            case 'over100': return course.price >= 100;
             default: return true;
           }
         });
@@ -110,7 +111,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
       if (filters.rating) {
         const minRating = parseFloat(filters.rating);
         filteredCourses = filteredCourses.filter(course => 
-          course.ratingAverage >= minRating
+          course.rating >= minRating
         );
       }
 
@@ -120,9 +121,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
         title: course.title,
         description: course.description,
         category: course.category,
-        instructor: course.instructorName,
-        rating: course.ratingAverage,
-        price: course.pricing
+        instructor: (course.instructorId as any).name,
+        rating: course.rating,
+        price: course.price
       }));
 
       setResults(searchResults.slice(0, 8)); // Limit to 8 results

@@ -17,7 +17,7 @@ import {
   Filter
 } from 'lucide-react';
 import { Course, Enrollment, User } from '@/types';
-import { getCourses, getFromStorage, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 
 interface StudentEnrollmentData {
   enrollment: Enrollment;
@@ -37,7 +37,6 @@ const StudentManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadStudentData();
   }, [user]);
 
@@ -49,35 +48,25 @@ const StudentManagement: React.FC = () => {
     if (!user) return;
 
     try {
-      const allCourses = await getCourses();
-      const myCourses = allCourses.filter(course => course.instructorId === user.id);
-      setInstructorCourses(myCourses);
+      const [coursesRes, enrollmentsRes] = await Promise.all([
+        axios.get(`/api/instructor/courses/${user._id}`),
+        axios.get(`/api/instructor/enrollments/${user._id}`)
+      ]);
 
-      const allEnrollments = getFromStorage('enrollments') || [];
-      const allUsers = getFromStorage('users') || [];
+      setInstructorCourses(coursesRes.data);
 
-      // Get enrollments for instructor's courses
-      const myEnrollments = allEnrollments.filter((enrollment: Enrollment) => 
-        myCourses.some(course => course.id === enrollment.courseId)
+      const combinedData: StudentEnrollmentData[] = await Promise.all(
+        enrollmentsRes.data.map(async (enrollment: Enrollment) => {
+          const course = coursesRes.data.find((c: Course) => c._id === enrollment.course_id)!;
+          const studentRes = await axios.get(`/api/users/${enrollment.user_id}`);
+          return {
+            enrollment,
+            course,
+            studentName: studentRes.data.name,
+            studentEmail: studentRes.data.email
+          };
+        })
       );
-
-      // Create combined data with student info
-      const combinedData: StudentEnrollmentData[] = myEnrollments.map((enrollment: Enrollment) => {
-        const course = myCourses.find(c => c.id === enrollment.courseId)!;
-        
-        // Mock student data since we don't have a full user system
-        const mockStudent = {
-          name: `Student ${enrollment.userId}`,
-          email: `student${enrollment.userId}@example.com`
-        };
-
-        return {
-          enrollment,
-          course,
-          studentName: mockStudent.name,
-          studentEmail: mockStudent.email
-        };
-      });
 
       setStudentData(combinedData);
 
@@ -102,7 +91,7 @@ const StudentManagement: React.FC = () => {
 
     // Course filter
     if (courseFilter !== 'all') {
-      filtered = filtered.filter(data => data.course.id === courseFilter);
+      filtered = filtered.filter(data => data.course._id === courseFilter);
     }
 
     // Status filter
@@ -138,7 +127,7 @@ const StudentManagement: React.FC = () => {
   };
 
   const getTotalStudents = () => {
-    return new Set(studentData.map(data => data.enrollment.userId)).size;
+    return new Set(studentData.map(data => data.enrollment.user_id)).size;
   };
 
   const getActiveStudents = () => {
@@ -258,7 +247,7 @@ const StudentManagement: React.FC = () => {
               <SelectContent>
                 <SelectItem value="all">All Courses</SelectItem>
                 {instructorCourses.map(course => (
-                  <SelectItem key={course.id} value={course.id}>
+                  <SelectItem key={course._id} value={course._id}>
                     {course.title}
                   </SelectItem>
                 ))}
@@ -315,7 +304,7 @@ const StudentManagement: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {filteredData.map((data, index) => (
-            <Card key={`${data.enrollment.id}-${index}`} className="hover:shadow-md transition-shadow">
+            <Card key={`${data.enrollment._id}-${index}`} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

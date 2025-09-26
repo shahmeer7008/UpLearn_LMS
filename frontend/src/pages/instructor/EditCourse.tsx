@@ -21,7 +21,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Course, Module } from '@/types';
-import { getCourseById, getFromStorage, saveToStorage } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface ModuleFormData {
@@ -75,40 +75,37 @@ const EditCourse: React.FC = () => {
     if (!id || !user) return;
 
     try {
-      const courseData = await getCourseById(id);
-      if (!courseData) {
+      const res = await axios.get(`/api/courses/${id}`);
+      if (!res.data) {
         navigate('/instructor/courses');
         return;
       }
 
-      // Check if user owns this course
-      if (courseData.instructorId !== user.id) {
+      if (res.data.instructor_id !== user._id) {
         navigate('/instructor/courses');
         return;
       }
 
-      setCourse(courseData);
+      setCourse(res.data);
       setCourseData({
-        title: courseData.title,
-        description: courseData.description,
-        category: courseData.category,
-        pricing: courseData.pricing,
-        previewVideoUrl: courseData.previewVideoUrl || ''
+        title: res.data.title,
+        description: res.data.description,
+        category: res.data.category,
+        pricing: res.data.pricing,
+        previewVideoUrl: res.data.previewVideoUrl || ''
       });
 
-      setModules(courseData.modules.map((module, index) => ({
-        id: module.id,
+      setModules(res.data.modules.map((module: Module, index: number) => ({
+        _id: module._id,
         title: module.title,
         type: module.type,
-        contentUrl: module.contentUrl,
+        contentUrl: module.content_url,
         duration: module.duration,
         orderSequence: index + 1
       })));
 
-      // Check if course has enrollments
-      const enrollments = getFromStorage('enrollments') || [];
-      const courseEnrollments = enrollments.filter((e: any) => e.courseId === id);
-      setHasEnrollments(courseEnrollments.length > 0);
+      const enrollmentsRes = await axios.get(`/api/instructor/enrollments/${id}`);
+      setHasEnrollments(enrollmentsRes.data.length > 0);
 
     } catch (error) {
       console.error('Error loading course:', error);
@@ -209,32 +206,21 @@ const EditCourse: React.FC = () => {
     setIsSaving(true);
 
     try {
-      const courses = getFromStorage('courses') || [];
-      const updatedCourses = courses.map((c: Course) => {
-        if (c.id === course.id) {
-          return {
-            ...c,
-            title: courseData.title,
-            description: courseData.description,
-            category: courseData.category,
-            pricing: courseData.pricing,
-            previewVideoUrl: courseData.previewVideoUrl || undefined,
-            lastModifiedDate: new Date().toISOString(),
-            modules: modules.map(module => ({
-              id: module.id || `module_${Date.now()}_${module.orderSequence}`,
-              courseId: course.id,
-              title: module.title,
-              type: module.type,
-              contentUrl: module.contentUrl,
-              orderSequence: module.orderSequence,
-              duration: module.duration
-            }))
-          };
-        }
-        return c;
-      });
+      const updatedCourse = {
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        pricing: courseData.pricing,
+        previewVideoUrl: courseData.previewVideoUrl || undefined,
+        modules: modules.map(module => ({
+          title: module.title,
+          type: module.type,
+          content_url: module.contentUrl,
+          duration: module.duration
+        }))
+      };
 
-      saveToStorage('courses', updatedCourses);
+      await axios.put(`/api/courses/${course._id}`, updatedCourse);
       showSuccess('Course updated successfully!');
       navigate('/instructor/courses');
 

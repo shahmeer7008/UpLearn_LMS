@@ -17,7 +17,7 @@ import {
   Plus
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import { getCourses, getFromStorage, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 
 interface CourseAnalytics {
   course: Course;
@@ -37,7 +37,6 @@ const Analytics: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadAnalyticsData();
   }, [user]);
 
@@ -45,37 +44,10 @@ const Analytics: React.FC = () => {
     if (!user) return;
 
     try {
-      const allCourses = await getCourses();
-      const myCourses = allCourses.filter(course => course.instructorId === user.id);
-      setInstructorCourses(myCourses);
-
-      const allEnrollments = getFromStorage('enrollments') || [];
-      const allPayments = getFromStorage('payments') || [];
-
-      const analytics: CourseAnalytics[] = myCourses.map(course => {
-        const courseEnrollments = allEnrollments.filter((e: Enrollment) => e.courseId === course.id);
-        const coursePayments = allPayments.filter((p: Payment) => p.courseId === course.id);
-        
-        const completedCount = courseEnrollments.filter((e: Enrollment) => e.completionStatus === 'completed').length;
-        const completionRate = courseEnrollments.length > 0 ? (completedCount / courseEnrollments.length) * 100 : 0;
-        
-        const avgProgress = courseEnrollments.length > 0 
-          ? courseEnrollments.reduce((sum: number, e: Enrollment) => sum + e.progress, 0) / courseEnrollments.length
-          : 0;
-
-        const activeStudents = courseEnrollments.filter((e: Enrollment) => e.completionStatus === 'in-progress').length;
-
-        return {
-          course,
-          enrollments: courseEnrollments,
-          revenue: coursePayments.reduce((sum: number, p: Payment) => sum + p.amount, 0),
-          completionRate: Math.round(completionRate),
-          avgProgress: Math.round(avgProgress),
-          activeStudents
-        };
-      });
-
+      const response = await axios.get('/api/instructor/analytics');
+      const analytics: CourseAnalytics[] = response.data;
       setCourseAnalytics(analytics);
+      setInstructorCourses(analytics.map(a => a.course));
     } catch (error) {
       console.error('Error loading analytics data:', error);
     } finally {
@@ -85,8 +57,8 @@ const Analytics: React.FC = () => {
 
   const getTotalStats = () => {
     const filteredAnalytics = selectedCourse === 'all' 
-      ? courseAnalytics 
-      : courseAnalytics.filter(a => a.course.id === selectedCourse);
+      ? courseAnalytics
+      : courseAnalytics.filter(a => a.course._id === selectedCourse);
 
     return {
       totalStudents: filteredAnalytics.reduce((sum, a) => sum + a.enrollments.length, 0),
@@ -162,7 +134,7 @@ const Analytics: React.FC = () => {
           <SelectContent>
             <SelectItem value="all">All Courses</SelectItem>
             {instructorCourses.map(course => (
-              <SelectItem key={course.id} value={course.id}>
+              <SelectItem key={course._id} value={course._id}>
                 {course.title}
               </SelectItem>
             ))}
@@ -250,12 +222,12 @@ const Analytics: React.FC = () => {
             <CardContent>
               <div className="space-y-4">
                 {courseAnalytics.map((analytics) => (
-                  <div key={analytics.course.id} className="border rounded-lg p-4">
+                  <div key={analytics.course._id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="font-medium">{analytics.course.title}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {analytics.course.category} • {analytics.course.modules.length} modules
+                          {analytics.course.category}
                         </p>
                       </div>
                       <div className="text-right">
@@ -339,7 +311,7 @@ const Analytics: React.FC = () => {
             <CardContent>
               <div className="space-y-3">
                 {recentEnrollments.map((enrollment, index) => (
-                  <div key={`${enrollment.id}-${index}`} className="flex items-center space-x-3">
+                  <div key={`${enrollment._id}-${index}`} className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">

@@ -42,7 +42,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import { getCourses, getFromStorage, saveToStorage, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 
 const CourseManagement: React.FC = () => {
@@ -57,7 +57,6 @@ const CourseManagement: React.FC = () => {
   const [reviewNote, setReviewNote] = useState('');
 
   useEffect(() => {
-    initializeMockData();
     loadCourses();
   }, []);
 
@@ -67,8 +66,8 @@ const CourseManagement: React.FC = () => {
 
   const loadCourses = async () => {
     try {
-      const coursesData = await getCourses();
-      setCourses(coursesData);
+      const response = await axios.get('/api/admin/courses');
+      setCourses(response.data);
     } catch (error) {
       console.error('Error loading courses:', error);
     } finally {
@@ -84,7 +83,7 @@ const CourseManagement: React.FC = () => {
       filtered = filtered.filter(course =>
         course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructorName.toLowerCase().includes(searchTerm.toLowerCase())
+        (course.instructorId as any).name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -106,27 +105,13 @@ const CourseManagement: React.FC = () => {
 
   const handleCourseAction = async (courseId: string, action: 'approve' | 'reject' | 'archive' | 'delete', note?: string) => {
     try {
-      const courses = getFromStorage('courses') || [];
-      let updatedCourses;
-
       if (action === 'delete') {
-        updatedCourses = courses.filter((c: Course) => c.id !== courseId);
+        await axios.delete(`/api/admin/courses/${courseId}`);
       } else {
         const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'archived' : action;
-        updatedCourses = courses.map((course: Course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                status: newStatus,
-                lastModifiedDate: new Date().toISOString(),
-                reviewNote: note 
-              }
-            : course
-        );
+        await axios.put(`/api/admin/courses/${courseId}/status`, { status: newStatus, note });
       }
-      
-      saveToStorage('courses', updatedCourses);
-      setCourses(updatedCourses);
+      loadCourses();
       
       const actionMessages = {
         approve: 'Course approved successfully',
@@ -144,15 +129,10 @@ const CourseManagement: React.FC = () => {
   };
 
   const getCourseStats = (courseId: string) => {
-    const enrollments = getFromStorage('enrollments') || [];
-    const payments = getFromStorage('payments') || [];
-    
-    const courseEnrollments = enrollments.filter((e: Enrollment) => e.courseId === courseId);
-    const coursePayments = payments.filter((p: Payment) => p.courseId === courseId);
-    
+    // This function will be removed as the data is now coming from the backend
     return {
-      enrollments: courseEnrollments.length,
-      revenue: coursePayments.reduce((sum: number, p: Payment) => sum + p.amount, 0)
+      enrollments: 0,
+      revenue: 0
     };
   };
 
@@ -328,10 +308,10 @@ const CourseManagement: React.FC = () => {
           </div>
         ) : (
           filteredCourses.map((course) => {
-            const stats = getCourseStats(course.id);
+            const stats = getCourseStats(course._id);
             
             return (
-              <Card key={course.id} className="hover:shadow-md transition-shadow">
+              <Card key={course._id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -350,11 +330,11 @@ const CourseManagement: React.FC = () => {
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4 text-sm">
                         <div className="flex items-center space-x-2">
                           <Users className="h-4 w-4 text-gray-400" />
-                          <span>By {course.instructorName}</span>
+                          <span>By {(course.instructorId as any).name}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <BookOpen className="h-4 w-4 text-gray-400" />
-                          <span>{course.modules.length} modules</span>
+                          <span>{course.duration} hours</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Users className="h-4 w-4 text-gray-400" />
@@ -373,14 +353,14 @@ const CourseManagement: React.FC = () => {
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center space-x-1">
                           <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span>{course.ratingAverage}</span>
+                          <span>{course.rating}</span>
                         </div>
                         <span>Revenue: ${stats.revenue.toFixed(2)}</span>
                       </div>
                     </div>
 
                     <div className="ml-6 flex flex-col space-y-2">
-                      <Link to={`/courses/${course.id}`}>
+                      <Link to={`/courses/${course._id}`}>
                         <Button variant="outline" size="sm" className="w-full">
                           <Eye className="h-4 w-4 mr-2" />
                           View
@@ -421,7 +401,7 @@ const CourseManagement: React.FC = () => {
                                   Cancel
                                 </Button>
                                 <Button 
-                                  onClick={() => handleCourseAction(course.id, 'approve', reviewNote)}
+                                  onClick={() => handleCourseAction(course._id, 'approve', reviewNote)}
                                   className="bg-green-600 hover:bg-green-700"
                                 >
                                   Approve Course
@@ -464,7 +444,7 @@ const CourseManagement: React.FC = () => {
                                   Cancel
                                 </Button>
                                 <Button 
-                                  onClick={() => handleCourseAction(course.id, 'reject', reviewNote)}
+                                  onClick={() => handleCourseAction(course._id, 'reject', reviewNote)}
                                   variant="destructive"
                                   disabled={!reviewNote.trim()}
                                 >
@@ -502,7 +482,7 @@ const CourseManagement: React.FC = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleCourseAction(course.id, 'delete')}
+                              onClick={() => handleCourseAction(course._id, 'delete')}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Delete Course

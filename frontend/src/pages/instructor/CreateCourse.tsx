@@ -19,7 +19,7 @@ import {
   Save
 } from 'lucide-react';
 import { Course, Module } from '@/types';
-import { getFromStorage, saveToStorage } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface CourseFormData {
@@ -134,35 +134,20 @@ const CreateCourse: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const courses = getFromStorage('courses') || [];
-      
-      const newCourse: Course = {
-        id: `course_${Date.now()}`,
+      const newCourse = {
         title: courseData.title,
         description: courseData.description,
         category: courseData.category,
-        instructorId: user.id,
-        instructorName: user.name,
+        instructor_id: user._id,
         pricing: courseData.pricing,
-        status: 'pending', // Requires admin approval
-        createdDate: new Date().toISOString(),
-        lastModifiedDate: new Date().toISOString(),
-        previewVideoUrl: courseData.previewVideoUrl || undefined,
-        ratingAverage: 0,
-        enrollmentCount: 0,
         modules: modules.map((module, index) => ({
-          id: `module_${Date.now()}_${index}`,
-          courseId: `course_${Date.now()}`,
           title: module.title,
           type: module.type,
-          contentUrl: module.contentUrl,
-          orderSequence: index + 1,
-          duration: module.duration
+          content_url: module.contentUrl,
         }))
       };
 
-      courses.push(newCourse);
-      saveToStorage('courses', courses);
+      await axios.post('/api/courses', newCourse);
 
       showSuccess('Course created successfully! It will be reviewed by administrators before publication.');
       navigate('/instructor/courses');

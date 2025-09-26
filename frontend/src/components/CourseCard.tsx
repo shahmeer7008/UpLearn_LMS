@@ -49,12 +49,12 @@ const CourseCard: React.FC<CourseCardProps> = ({
   onWishlist,
   onShare
 }) => {
-  const formatPrice = (price: number) => {
-    return price === 0 ? 'Free' : `$${price.toFixed(2)}`;
+  const formatPrice = (pricing: number) => {
+    return pricing === 0 ? 'Free' : `$${pricing.toFixed(2)}`;
   };
 
-  const getPriceColor = (price: number) => {
-    return price === 0 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400';
+  const getPriceColor = (pricing: number) => {
+    return pricing === 0 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400';
   };
 
   const getStatusBadge = () => {
@@ -71,7 +71,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
   };
 
   const getTotalDuration = () => {
-    return course.modules.reduce((total, module) => total + (module.duration || 30), 0);
+    return course.duration;
   };
 
   if (variant === 'compact') {
@@ -90,10 +90,10 @@ const CourseCard: React.FC<CourseCardProps> = ({
                   <div className="flex items-center space-x-2 mt-2">
                     <div className="flex items-center space-x-1">
                       <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                      <span className="text-xs">{course.ratingAverage}</span>
+                      <span className="text-xs">{course.rating}</span>
                     </div>
                     <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">{course.enrollmentCount} students</span>
+                    <span className="text-xs text-gray-500">0 students</span>
                   </div>
                 </div>
                 <div className="text-right ml-2">
@@ -114,11 +114,10 @@ const CourseCard: React.FC<CourseCardProps> = ({
     return (
       <Card className="hover:shadow-lg transition-shadow duration-200">
         <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-t-lg relative overflow-hidden">
-          {course.previewVideoUrl ? (
-            <iframe
-              src={course.previewVideoUrl}
+          {course.coverImage ? (
+            <img
+              src={course.coverImage}
               className="w-full h-full"
-              allowFullScreen
             />
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -130,12 +129,12 @@ const CourseCard: React.FC<CourseCardProps> = ({
           </div>
           {showActions && (
             <div className="absolute top-2 left-2 flex space-x-1">
-              <WishlistSystem courseId={course.id} />
+              <WishlistSystem courseId={course._id} />
               <Button
                 variant="secondary"
                 size="sm"
                 className="h-8 w-8 p-0"
-                onClick={() => onShare?.(course.id)}
+                onClick={() => onShare?.(course._id)}
               >
                 <Share2 className="h-4 w-4" />
               </Button>
@@ -162,11 +161,11 @@ const CourseCard: React.FC<CourseCardProps> = ({
             <div className="flex items-center space-x-2">
               <Avatar className="h-6 w-6">
                 <AvatarFallback className="text-xs">
-                  {course.instructorName.charAt(0)}
+                  {(course.instructorId as any).name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {course.instructorName}
+                {(course.instructorId as any).name}
               </span>
             </div>
           )}
@@ -185,11 +184,11 @@ const CourseCard: React.FC<CourseCardProps> = ({
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
                 <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                <span>{course.ratingAverage}</span>
+                <span>{course.rating}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Users className="h-4 w-4" />
-                <span>{course.enrollmentCount.toLocaleString()}</span>
+                <span>0</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-4 w-4" />
@@ -202,7 +201,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
           </div>
 
           <div className="flex items-center justify-between">
-            <Link to={`/courses/${course.id}`} className="flex-1 mr-2">
+            <Link to={`/courses/${course._id}`} className="flex-1 mr-2">
               <Button className="w-full">
                 {enrollment ? 'Continue Learning' : 'View Course'}
               </Button>
@@ -216,11 +215,11 @@ const CourseCard: React.FC<CourseCardProps> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onWishlist?.(course.id)}>
+                  <DropdownMenuItem onClick={() => onWishlist?.(course._id)}>
                     <Heart className="h-4 w-4 mr-2" />
                     Add to Wishlist
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onShare?.(course.id)}>
+                  <DropdownMenuItem onClick={() => onShare?.(course._id)}>
                     <Share2 className="h-4 w-4 mr-2" />
                     Share Course
                   </DropdownMenuItem>
@@ -258,10 +257,10 @@ const CourseCard: React.FC<CourseCardProps> = ({
         <div className="space-y-4">
           {showInstructor && (
             <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-              <span>By {course.instructorName}</span>
+              <span>By {(course.instructorId as any).name}</span>
               <div className="flex items-center space-x-1">
                 <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                <span>{course.ratingAverage}</span>
+                <span>{course.rating}</span>
               </div>
             </div>
           )}
@@ -279,22 +278,22 @@ const CourseCard: React.FC<CourseCardProps> = ({
           <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center space-x-1">
               <Users className="h-4 w-4" />
-              <span>{course.enrollmentCount.toLocaleString()} students</span>
+              <span>0 students</span>
             </div>
             <div className="flex items-center space-x-1">
               <Clock className="h-4 w-4" />
-              <span>{course.modules.length} modules</span>
+              <span>{course.duration} hours</span>
             </div>
           </div>
 
           <div className="flex space-x-2">
-            <Link to={`/courses/${course.id}`} className="flex-1">
+            <Link to={`/courses/${course._id}`} className="flex-1">
               <Button className="w-full">
                 {enrollment ? 'Continue Learning' : 'View Course'}
               </Button>
             </Link>
             {showActions && (
-              <WishlistSystem courseId={course.id} />
+              <WishlistSystem courseId={course._id} />
             )}
           </div>
         </div>

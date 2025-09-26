@@ -14,7 +14,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { Certificate } from '@/types';
-import { getCertificatesByUserId, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 import { showSuccess } from '@/utils/toast';
 
 const Certificates: React.FC = () => {
@@ -25,7 +25,6 @@ const Certificates: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadCertificates();
   }, [user]);
 
@@ -37,8 +36,8 @@ const Certificates: React.FC = () => {
     if (!user) return;
 
     try {
-      const userCertificates = await getCertificatesByUserId(user.id);
-      setCertificates(userCertificates);
+      const res = await axios.get(`/api/student/certificates/${user._id}`);
+      setCertificates(res.data);
     } catch (error) {
       console.error('Error loading certificates:', error);
     } finally {
@@ -219,7 +218,7 @@ const Certificates: React.FC = () => {
           {/* Certificates List */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredCertificates.map((certificate) => (
-              <Card key={certificate.id} className="hover:shadow-lg transition-shadow duration-200">
+              <Card key={certificate._id} className="hover:shadow-lg transition-shadow duration-200">
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

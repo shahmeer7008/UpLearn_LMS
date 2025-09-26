@@ -1,43 +1,53 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
 const Enrollment = require('../models/Enrollment');
-const Course = require('../models/Course');
+const Payment = require('../models/Payment');
+const Certificate = require('../models/Certificate');
+const auth = require('../middleware/auth');
 
-// @route   POST api/courses/:id/enroll
-// @desc    Enroll in a course
-// @access  Private
-router.post('/courses/:id/enroll', authenticate, async (req, res) => {
-    try {
-        const course = await Course.findById(req.params.id);
-        if (!course || course.status !== 'approved') {
-            return res.status(404).json({ msg: 'Course not found or not available for enrollment' });
-        }
-
-        const enrollment = new Enrollment({
-            user_id: req.user.id,
-            course_id: req.params.id
-        });
-
-        await enrollment.save();
-        res.json(enrollment);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+// Get user's enrollment for a course
+router.get('/enrollment/:userId/:courseId', auth.authenticate, async (req, res) => {
+  try {
+    const enrollment = await Enrollment.findOne({ user_id: req.params.userId, course_id: req.params.courseId });
+    res.json(enrollment);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 });
 
-// @route   GET api/student/my-courses
-// @desc    Get all courses for a student
-// @access  Private
-router.get('/my-courses', authenticate, async (req, res) => {
-    try {
-        const enrollments = await Enrollment.find({ user_id: req.user.id }).populate('course_id');
-        res.json(enrollments);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+// Get user's payment for a course
+router.get('/payment/:userId/:courseId', auth.authenticate, async (req, res) => {
+  try {
+    const payment = await Payment.findOne({ user_id: req.params.userId, course_id: req.params.courseId });
+    res.json(payment);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Update enrollment progress
+router.put('/enrollment/:enrollmentId', auth.authenticate, async (req, res) => {
+  try {
+    const enrollment = await Enrollment.findByIdAndUpdate(req.params.enrollmentId, req.body, { new: true });
+    res.json(enrollment);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Create a certificate
+router.post('/certificates', auth.authenticate, async (req, res) => {
+  try {
+    const certificate = new Certificate(req.body);
+    await certificate.save();
+    res.json(certificate);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 });
 
 module.exports = router;

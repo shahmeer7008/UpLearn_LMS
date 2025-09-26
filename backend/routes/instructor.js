@@ -3,6 +3,49 @@ const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
+const Payment = require('../models/Payment');
+
+// @route   GET /api/instructor/analytics
+// @desc    Get analytics for the authenticated instructor
+// @access  Private (Instructor only)
+router.get('/analytics', async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const courses = await Course.find({ instructor_id: instructorId });
+    const courseIds = courses.map(course => course._id);
+
+    const enrollments = await Enrollment.find({ course_id: { $in: courseIds } });
+    const payments = await Payment.find({ course_id: { $in: courseIds } });
+
+    const analytics = courses.map(course => {
+      const courseEnrollments = enrollments.filter(e => e.course_id.toString() === course._id.toString());
+      const coursePayments = payments.filter(p => p.course_id.toString() === course._id.toString());
+
+      const completedCount = courseEnrollments.filter(e => e.completionStatus === 'completed').length;
+      const completionRate = courseEnrollments.length > 0 ? (completedCount / courseEnrollments.length) * 100 : 0;
+
+      const avgProgress = courseEnrollments.length > 0
+        ? courseEnrollments.reduce((sum, e) => sum + e.progress, 0) / courseEnrollments.length
+        : 0;
+
+      const activeStudents = courseEnrollments.filter(e => e.completionStatus === 'in-progress').length;
+
+      return {
+        course,
+        enrollments: courseEnrollments,
+        revenue: coursePayments.reduce((sum, p) => sum + p.amount, 0),
+        completionRate: Math.round(completionRate),
+        avgProgress: Math.round(avgProgress),
+        activeStudents,
+      };
+    });
+
+    res.json(analytics);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
 
 // Protect all routes for instructors
 router.use(authenticate, authorize('instructor'));

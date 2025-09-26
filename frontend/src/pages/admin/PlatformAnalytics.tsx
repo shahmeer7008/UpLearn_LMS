@@ -19,7 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Course, Enrollment, Payment, User } from '@/types';
-import { getCourses, getFromStorage, initializeMockData } from '@/data/mockData';
+import axios from 'axios';
 
 interface PlatformStats {
   totalUsers: number;
@@ -40,72 +40,15 @@ const PlatformAnalytics: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadPlatformStats();
   }, []);
 
   const loadPlatformStats = async () => {
     try {
-      const allCourses = await getCourses();
-      const allEnrollments = getFromStorage('enrollments') || [];
-      const allPayments = getFromStorage('payments') || [];
-      
-      // Mock users data
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          name: 'Sarah Student',
-          email: 'student@example.com',
-          role: 'student',
-          status: 'active',
-          createdDate: '2024-01-15T10:00:00Z',
-          lastModifiedDate: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: '2',
-          name: 'Mike Instructor',
-          email: 'instructor@example.com',
-          role: 'instructor',
-          status: 'active',
-          createdDate: '2024-01-10T09:00:00Z',
-          lastModifiedDate: '2024-01-10T09:00:00Z'
-        },
-        {
-          id: '3',
-          name: 'Admin User',
-          email: 'admin@example.com',
-          role: 'admin',
-          status: 'active',
-          createdDate: '2024-01-01T08:00:00Z',
-          lastModifiedDate: '2024-01-01T08:00:00Z'
-        },
-        // Add more mock users for better analytics
-        ...Array.from({ length: 20 }, (_, i) => ({
-          id: `user_${i + 4}`,
-          name: `User ${i + 4}`,
-          email: `user${i + 4}@example.com`,
-          role: Math.random() > 0.7 ? 'instructor' : 'student' as 'student' | 'instructor',
-          status: 'active' as 'active',
-          createdDate: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-          lastModifiedDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
-        }))
-      ];
+      const response = await axios.get('/api/admin/stats');
+      const stats = response.data;
 
-      // Calculate completion rate
-      const completedEnrollments = allEnrollments.filter((e: Enrollment) => e.completionStatus === 'completed').length;
-      const completionRate = allEnrollments.length > 0 ? (completedEnrollments / allEnrollments.length) * 100 : 0;
-
-      // Get top categories
-      const categoryCount: { [key: string]: number } = {};
-      allCourses.forEach(course => {
-        categoryCount[course.category] = (categoryCount[course.category] || 0) + 1;
-      });
-      const topCategories = Object.entries(categoryCount)
-        .map(([category, count]) => ({ category, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-
-      // Generate recent activity
+      // Generate recent activity (can be replaced with a real-time feed)
       const recentActivity = [
         { type: 'enrollment', message: 'New student enrolled in React Development', time: '2 hours ago' },
         { type: 'course', message: 'New course submitted for review', time: '4 hours ago' },
@@ -114,19 +57,7 @@ const PlatformAnalytics: React.FC = () => {
         { type: 'user', message: 'New instructor registered', time: '1 day ago' }
       ];
 
-      const stats: PlatformStats = {
-        totalUsers: mockUsers.length,
-        totalCourses: allCourses.length,
-        totalEnrollments: allEnrollments.length,
-        totalRevenue: allPayments.reduce((sum: number, p: Payment) => sum + p.amount, 0),
-        completionRate: Math.round(completionRate),
-        activeUsers: mockUsers.filter(u => u.status === 'active').length,
-        pendingCourses: allCourses.filter(c => c.status === 'pending').length,
-        topCategories,
-        recentActivity
-      };
-
-      setPlatformStats(stats);
+      setPlatformStats({ ...stats, recentActivity });
     } catch (error) {
       console.error('Error loading platform stats:', error);
     } finally {

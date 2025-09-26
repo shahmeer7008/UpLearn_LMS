@@ -15,14 +15,14 @@ import {
   Eye
 } from 'lucide-react';
 import { Course } from '@/types';
-import { getCourseById, getFromStorage, saveToStorage } from '@/data/mockData';
 import { showSuccess, showError } from '@/utils/toast';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 
 interface WishlistItem {
-  id: string;
-  userId: string;
-  courseId: string;
+  _id: string;
+  user_id: string;
+  course_id: string;
   addedDate: string;
 }
 
@@ -46,7 +46,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
 
   useEffect(() => {
     if (courseId && wishlistItems.length > 0) {
-      setIsInWishlist(wishlistItems.some(item => item.courseId === courseId));
+      setIsInWishlist(wishlistItems.some(item => item.course_id === courseId));
     }
   }, [courseId, wishlistItems]);
 
@@ -54,16 +54,14 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
     if (!user) return;
 
     try {
-      const savedWishlist = getFromStorage('wishlist') || [];
-      const userWishlist = savedWishlist.filter((item: WishlistItem) => item.userId === user.id);
-      setWishlistItems(userWishlist);
+      const res = await axios.get(`/api/wishlist/${user._id}`);
+      setWishlistItems(res.data);
 
-      // Load course details for wishlist items
       const courses: Course[] = [];
-      for (const item of userWishlist) {
-        const course = await getCourseById(item.courseId);
-        if (course) {
-          courses.push(course);
+      for (const item of res.data) {
+        const courseRes = await axios.get(`/api/courses/${item.course_id}`);
+        if (courseRes.data) {
+          courses.push(courseRes.data);
         }
       }
       setWishlistCourses(courses);
@@ -81,26 +79,12 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
     setIsLoading(true);
 
     try {
-      const savedWishlist = getFromStorage('wishlist') || [];
-      
       if (isInWishlist) {
-        // Remove from wishlist
-        const updatedWishlist = savedWishlist.filter(
-          (item: WishlistItem) => !(item.userId === user.id && item.courseId === courseId)
-        );
-        saveToStorage('wishlist', updatedWishlist);
+        await axios.delete(`/api/wishlist/${user._id}/${courseId}`);
         setIsInWishlist(false);
         showSuccess('Removed from wishlist');
       } else {
-        // Add to wishlist
-        const newWishlistItem: WishlistItem = {
-          id: `w${Date.now()}`,
-          userId: user.id,
-          courseId,
-          addedDate: new Date().toISOString()
-        };
-        savedWishlist.push(newWishlistItem);
-        saveToStorage('wishlist', savedWishlist);
+        await axios.post('/api/wishlist', { userId: user._id, courseId });
         setIsInWishlist(true);
         showSuccess('Added to wishlist');
       }
@@ -117,11 +101,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
     if (!user) return;
 
     try {
-      const savedWishlist = getFromStorage('wishlist') || [];
-      const updatedWishlist = savedWishlist.filter(
-        (item: WishlistItem) => !(item.userId === user.id && item.courseId === courseIdToRemove)
-      );
-      saveToStorage('wishlist', updatedWishlist);
+      await axios.delete(`/api/wishlist/${user._id}/${courseIdToRemove}`);
       showSuccess('Removed from wishlist');
       loadWishlist();
     } catch (error) {
@@ -130,7 +110,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
   };
 
   const shareWishlist = () => {
-    const wishlistUrl = `${window.location.origin}/wishlist/${user?.id}`;
+    const wishlistUrl = `${window.location.origin}/wishlist/${user?._id}`;
     navigator.clipboard.writeText(wishlistUrl);
     showSuccess('Wishlist link copied to clipboard!');
   };
@@ -211,10 +191,10 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {wishlistCourses.map((course) => {
-              const wishlistItem = wishlistItems.find(item => item.courseId === course.id);
+              const wishlistItem = wishlistItems.find(item => item.course_id === course._id);
               
               return (
-                <Card key={course.id} className="hover:shadow-lg transition-shadow duration-200">
+                <Card key={course._id} className="hover:shadow-lg transition-shadow duration-200">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <Badge variant="secondary" className="mb-2">
@@ -223,7 +203,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeFromWishlist(course.id)}
+                        onClick={() => removeFromWishlist(course._id)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -266,7 +246,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
                     </div>
 
                     <div className="flex space-x-2">
-                      <Link to={`/courses/${course.id}`} className="flex-1">
+                      <Link to={`/courses/${course._id}`} className="flex-1">
                         <Button className="w-full">
                           <Eye className="h-4 w-4 mr-2" />
                           View Course

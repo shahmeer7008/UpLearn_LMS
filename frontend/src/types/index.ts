@@ -7,31 +7,41 @@ export interface User {
   profileImage?: string;
   createdDate: string;
   lastModifiedDate: string;
+  enrolledCourses?: string[];
+  wishlist?: string[];
 }
 
 export interface Course {
-  _id: string;
+  _id: string; // MongoDB _id
   title: string;
   description: string;
   category: string;
   instructorId: string;
-  instructorName: string;
   pricing: number; // 0 for free courses
-  status: 'pending' | 'approved' | 'archived';
+  status: 'pending' | 'approved' | 'archived' | 'published';
   createdDate: string;
   lastModifiedDate: string;
-  previewVideoUrl?: string;
-  ratingAverage: number;
-  enrollmentCount: number;
-  modules: Module[];
+  coverImage?: string;
+  rating: number;
+  duration: number;
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  tags: string[];
+  published: boolean;
+  modules: Module[]; // Added for compatibility
+  enrollmentCount: number; // Added for compatibility
+  ratingAverage?: number; // Optional, for compatibility
+  instructorName?: string; // Optional, for compatibility
+  completedModules?: string[]; // Array of completed module IDs
 }
 
 export interface Module {
-  id: string;
-  courseId: string;
+  _id: string; // MongoDB _id
+  id?: string; // Optional for compatibility
+  course_id: string;
   title: string;
   type: 'video' | 'pdf' | 'quiz';
-  contentUrl: string;
+  contentUrl: string; // camelCase for frontend
+  content_url?: string; // snake_case for backend
   orderSequence: number;
   duration?: number; // in minutes
 }
@@ -43,8 +53,8 @@ export interface Enrollment {
   progress: number; // percentage 0-100
   completionStatus: 'in-progress' | 'completed';
   enrollmentDate: string;
+  completedModules?: string[];
   lastAccessedDate: string;
-  completedModules: string[]; // array of module IDs
 }
 
 export interface Payment {
@@ -53,15 +63,15 @@ export interface Payment {
   course_id: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed';
-  transactionId: string;
   paymentDate: string;
-  courseName: string;
+  transaction_id?: string;
+  courseName?: string;
 }
 
 export interface Certificate {
-  id: string;
-  userId: string;
-  courseId: string;
+  _id: string;
+  user_id: string;
+  course_id: string;
   courseName: string;
   completionDate: string;
   certificateUrl: string;
@@ -69,11 +79,11 @@ export interface Certificate {
 }
 
 export interface Review {
-  id: string;
-  userId: string;
+  _id: string;
+  user_id: string;
   userName: string;
   userAvatar?: string;
-  courseId: string;
+  course_id: string;
   rating: number; // 1-5 stars
   comment: string;
   createdDate: string;

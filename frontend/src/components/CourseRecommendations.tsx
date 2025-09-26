@@ -14,7 +14,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import { getCourses, getEnrollmentsByUserId, getFromStorage } from '@/data/mockData';
+import axios from 'axios';
 import CourseCard from './CourseCard';
 
 interface RecommendationSection {
@@ -40,23 +40,27 @@ const CourseRecommendations: React.FC = () => {
     if (!user) return;
 
     try {
-      const allCourses = await getCourses();
-      const userEnrollments = await getEnrollmentsByUserId(user.id);
-      const enrolledCourseIds = userEnrollments.map(e => e.courseId);
-      const availableCourses = allCourses.filter(course => 
-        !enrolledCourseIds.includes(course.id) && course.status === 'approved'
+      const [coursesRes, enrollmentsRes] = await Promise.all([
+        axios.get('/api/courses'),
+        axios.get(`/api/student/enrollments/${user._id}`)
+      ]);
+      const allCourses = coursesRes.data;
+      const userEnrollments = enrollmentsRes.data;
+      const enrolledCourseIds = userEnrollments.map((e: Enrollment) => e.course_id);
+      const availableCourses = allCourses.filter((course: Course) =>
+        !enrolledCourseIds.includes(course._id) && course.status === 'approved'
       );
 
       const recommendationSections: RecommendationSection[] = [];
 
       // 1. Based on enrolled courses (similar categories)
       if (userEnrollments.length > 0) {
-        const enrolledCourses = allCourses.filter(c => enrolledCourseIds.includes(c.id));
+        const enrolledCourses = allCourses.filter((c: Course) => enrolledCourseIds.includes(c._id));
         const userCategories = [...new Set(enrolledCourses.map(c => c.category))];
         
         const similarCourses = availableCourses
           .filter(course => userCategories.includes(course.category))
-          .sort((a, b) => b.ratingAverage - a.ratingAverage)
+          .sort((a, b) => b.rating - a.rating)
           .slice(0, 4);
 
         if (similarCourses.length > 0) {
@@ -72,7 +76,7 @@ const CourseRecommendations: React.FC = () => {
 
       // 2. Trending/Popular courses
       const trendingCourses = availableCourses
-        .sort((a, b) => b.enrollmentCount - a.enrollmentCount)
+        .sort((a, b) => 0)
         .slice(0, 4);
 
       recommendationSections.push({
@@ -85,8 +89,8 @@ const CourseRecommendations: React.FC = () => {
 
       // 3. Highly rated courses
       const topRatedCourses = availableCourses
-        .filter(course => course.ratingAverage >= 4.5)
-        .sort((a, b) => b.ratingAverage - a.ratingAverage)
+        .filter(course => course.rating >= 4.5)
+        .sort((a, b) => b.rating - a.rating)
         .slice(0, 4);
 
       recommendationSections.push({
@@ -100,7 +104,7 @@ const CourseRecommendations: React.FC = () => {
       // 4. Free courses
       const freeCourses = availableCourses
         .filter(course => course.pricing === 0)
-        .sort((a, b) => b.ratingAverage - a.ratingAverage)
+        .sort((a, b) => b.rating - a.rating)
         .slice(0, 4);
 
       if (freeCourses.length > 0) {
@@ -115,8 +119,8 @@ const CourseRecommendations: React.FC = () => {
 
       // 5. Quick wins (short courses)
       const quickCourses = availableCourses
-        .filter(course => course.modules.length <= 5)
-        .sort((a, b) => b.ratingAverage - a.ratingAverage)
+        .filter(course => course.duration <= 5)
+        .sort((a, b) => b.rating - a.rating)
         .slice(0, 4);
 
       if (quickCourses.length > 0) {
@@ -203,7 +207,7 @@ const CourseRecommendations: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {section.courses.map((course) => (
               <CourseCard
-                key={course.id}
+                key={course._id}
                 course={course}
                 variant="default"
                 showInstructor={true}

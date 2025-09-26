@@ -17,26 +17,14 @@ import {
 } from '@/components/ui/dialog';
 import { Star, MessageSquare, ThumbsUp, Flag } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-
-interface Review {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar?: string;
-  courseId: string;
-  rating: number;
-  comment: string;
-  createdDate: string;
-  helpful: number;
-  reported: boolean;
-}
+import { Review } from '@/types';
 
 interface ReviewSystemProps {
-  courseId: string;
+  course_id: string;
   userEnrollment?: any;
 }
 
-const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment }) => {
+const ReviewSystem: React.FC<ReviewSystemProps> = ({ course_id, userEnrollment }) => {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [userReview, setUserReview] = useState<Review | null>(null);
@@ -47,16 +35,16 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
 
   useEffect(() => {
     loadReviews();
-  }, [courseId]);
+  }, [course_id]);
 
   const loadReviews = () => {
     // Mock reviews data - in real app, this would come from API
     const mockReviews: Review[] = [
       {
-        id: '1',
-        userId: '1',
+        _id: '1',
+        user_id: '1',
         userName: 'Sarah Student',
-        courseId: courseId,
+        course_id: course_id,
         rating: 5,
         comment: 'Excellent course! The instructor explains everything clearly and the hands-on projects really helped me understand the concepts.',
         createdDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -64,10 +52,10 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
         reported: false
       },
       {
-        id: '2',
-        userId: '4',
+        _id: '2',
+        user_id: '4',
         userName: 'John Learner',
-        courseId: courseId,
+        course_id: course_id,
         rating: 4,
         comment: 'Great content and well-structured. Could use more advanced examples, but overall very satisfied.',
         createdDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
@@ -75,10 +63,10 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
         reported: false
       },
       {
-        id: '3',
-        userId: '5',
+        _id: '3',
+        user_id: '5',
         userName: 'Emily Chen',
-        courseId: courseId,
+        course_id: course_id,
         rating: 5,
         comment: 'This course exceeded my expectations. The practical exercises and real-world examples made learning enjoyable.',
         createdDate: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
@@ -90,7 +78,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
     setReviews(mockReviews);
     
     // Check if current user has already reviewed
-    const existingReview = mockReviews.find(r => r.userId === user?.id);
+    const existingReview = mockReviews.find(r => r.user_id === user?._id);
     setUserReview(existingReview || null);
   };
 
@@ -104,11 +92,11 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
 
     try {
       const review: Review = {
-        id: Date.now().toString(),
-        userId: user.id,
+        _id: Date.now().toString(),
+        user_id: user._id,
         userName: user.name,
         userAvatar: user.profileImage,
-        courseId,
+        course_id,
         rating: newRating,
         comment: newComment.trim(),
         createdDate: new Date().toISOString(),
@@ -118,7 +106,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
 
       if (userReview) {
         // Update existing review
-        setReviews(prev => prev.map(r => r.id === userReview.id ? review : r));
+        setReviews(prev => prev.map(r => r._id === userReview._id ? review : r));
         showSuccess('Review updated successfully!');
       } else {
         // Add new review
@@ -140,7 +128,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
 
   const handleHelpfulClick = (reviewId: string) => {
     setReviews(prev => prev.map(review => 
-      review.id === reviewId 
+      review._id === reviewId
         ? { ...review, helpful: review.helpful + 1 }
         : review
     ));
@@ -149,7 +137,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
 
   const handleReportReview = (reviewId: string) => {
     setReviews(prev => prev.map(review => 
-      review.id === reviewId 
+      review._id === reviewId
         ? { ...review, reported: true }
         : review
     ));
@@ -185,7 +173,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
   const getAverageRating = () => {
     if (reviews.length === 0) return 0;
     const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
-    return (sum / reviews.length).toFixed(1);
+    return sum / reviews.length;
   };
 
   const getRatingDistribution = () => {
@@ -212,10 +200,10 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-center">
               <div className="text-4xl font-bold text-yellow-500 mb-2">
-                {getAverageRating()}
+                {getAverageRating().toFixed(1)}
               </div>
               <div className="flex justify-center mb-2">
-                {renderStars(Math.round(parseFloat(getAverageRating())))}
+                {renderStars(Math.round(getAverageRating()))}
               </div>
               <p className="text-gray-600 dark:text-gray-400">
                 Based on {reviews.length} review{reviews.length !== 1 ? 's' : ''}
@@ -318,7 +306,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
           </Card>
         ) : (
           reviews.map((review) => (
-            <Card key={review.id}>
+            <Card key={review._id}>
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
                   <Avatar className="h-10 w-10">
@@ -340,7 +328,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
                         </div>
                       </div>
                       
-                      {review.userId === user?.id && (
+                      {review.user_id === user?._id && (
                         <Badge variant="outline">Your Review</Badge>
                       )}
                     </div>
@@ -353,18 +341,18 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ courseId, userEnrollment })
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleHelpfulClick(review.id)}
+                        onClick={() => handleHelpfulClick(review._id)}
                         className="text-gray-600 hover:text-gray-800"
                       >
                         <ThumbsUp className="h-4 w-4 mr-1" />
                         Helpful ({review.helpful})
                       </Button>
                       
-                      {review.userId !== user?.id && (
+                      {review.user_id !== user?._id && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleReportReview(review.id)}
+                          onClick={() => handleReportReview(review._id)}
                           className="text-gray-600 hover:text-red-600"
                           disabled={review.reported}
                         >

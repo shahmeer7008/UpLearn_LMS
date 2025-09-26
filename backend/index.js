@@ -32,6 +32,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/instructor', require('./routes/instructor'));
+app.use('/api/wishlist', require('./routes/wishlist'));
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
