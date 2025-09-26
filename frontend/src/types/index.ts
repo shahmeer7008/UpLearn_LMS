@@ -1,5 +1,5 @@
 export interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: 'student' | 'instructor' | 'admin';
@@ -10,7 +10,7 @@ export interface User {
 }
 
 export interface Course {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   category: string;
@@ -37,9 +37,9 @@ export interface Module {
 }
 
 export interface Enrollment {
-  id: string;
-  userId: string;
-  courseId: string;
+  _id: string;
+  user_id: string;
+  course_id: string;
   progress: number; // percentage 0-100
   completionStatus: 'in-progress' | 'completed';
   enrollmentDate: string;
@@ -48,9 +48,9 @@ export interface Enrollment {
 }
 
 export interface Payment {
-  id: string;
-  userId: string;
-  courseId: string;
+  _id: string;
+  user_id: string;
+  course_id: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed';
   transactionId: string;

@@ -103,57 +103,45 @@ const Navbar: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Role-based navigation */}
             {user.role === 'student' && (
               <>
                 <Link to="/courses">
-                  <Button variant="ghost" className="hidden sm:flex items-center space-x-2">
-                    <BookOpen className="h-4 w-4" />
-                    <span>Browse</span>
-                  </Button>
+                  <Button variant="ghost">Browse</Button>
                 </Link>
                 <Link to="/student/my-courses">
-                  <Button variant="ghost" className="hidden sm:inline-flex">My Courses</Button>
+                  <Button variant="ghost">My Courses</Button>
                 </Link>
-                <Link to="/wishlist">
-                  <Button variant="ghost" className="hidden sm:flex items-center space-x-2">
-                    <Heart className="h-4 w-4" />
-                    <span>Wishlist</span>
-                  </Button>
+                <Link to="/student/certificates">
+                  <Button variant="ghost">Certificates</Button>
                 </Link>
               </>
             )}
-
             {user.role === 'instructor' && (
               <>
                 <Link to="/instructor/courses">
-                  <Button variant="ghost" className="hidden sm:flex items-center space-x-2">
-                    <BookOpen className="h-4 w-4" />
-                    <span>Courses</span>
-                  </Button>
+                  <Button variant="ghost">My Courses</Button>
                 </Link>
                 <Link to="/instructor/students">
-                  <Button variant="ghost" className="hidden sm:flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span>Students</span>
-                  </Button>
+                  <Button variant="ghost">Students</Button>
+                </Link>
+                <Link to="/instructor/analytics">
+                  <Button variant="ghost">Analytics</Button>
+                </Link>
+                <Link to="/instructor/earnings">
+                  <Button variant="ghost">Earnings</Button>
                 </Link>
               </>
             )}
-
             {user.role === 'admin' && (
               <>
                 <Link to="/admin/users">
-                  <Button variant="ghost" className="hidden sm:flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span>Users</span>
-                  </Button>
+                  <Button variant="ghost">Users</Button>
+                </Link>
+                <Link to="/admin/courses">
+                  <Button variant="ghost">Courses</Button>
                 </Link>
                 <Link to="/admin/analytics">
-                  <Button variant="ghost" className="hidden sm:flex items-center space-x-2">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Analytics</span>
-                  </Button>
+                  <Button variant="ghost">Analytics</Button>
                 </Link>
               </>
             )}

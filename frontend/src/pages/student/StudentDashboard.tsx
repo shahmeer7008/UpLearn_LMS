@@ -18,26 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import { getCourses, getEnrollmentsByUserId, initializeMockData } from '@/data/mockData';
-import { Sidebar } from '@/components/Sidebar';
-
-const sidebarNavItems = [
-  {
-    title: "Dashboard",
-    href: "/student",
-    icon: <LayoutDashboard className="mr-2 h-4 w-4" />,
-  },
-  {
-    title: "My Courses",
-    href: "/student/my-courses",
-    icon: <Book className="mr-2 h-4 w-4" />,
-  },
-  {
-    title: "Certificates",
-    href: "/student/certificates",
-    icon: <FileText className="mr-2 h-4 w-4" />,
-  },
-];
+import axios from 'axios';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -47,7 +28,6 @@ const StudentDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMockData();
     loadDashboardData();
   }, [user]);
 
@@ -55,19 +35,19 @@ const StudentDashboard: React.FC = () => {
     if (!user) return;
 
     try {
-      const [allCourses, userEnrollments] = await Promise.all([
-        getCourses(),
-        getEnrollmentsByUserId(user.id)
+      const [enrollmentsRes, coursesRes] = await Promise.all([
+        axios.get(`/api/student/enrollments/${user._id}`),
+        axios.get('/api/courses')
       ]);
 
-      setEnrollments(userEnrollments);
+      setEnrollments(enrollmentsRes.data);
       
-      const enrolledCourseIds = userEnrollments.map(e => e.courseId);
-      const enrolled = allCourses.filter(course => enrolledCourseIds.includes(course.id));
+      const enrolledCourseIds = enrollmentsRes.data.map((e: Enrollment) => e.course_id);
+      const enrolled = coursesRes.data.filter((course: Course) => enrolledCourseIds.includes(course._id));
       setEnrolledCourses(enrolled);
 
-      const recommended = allCourses
-        .filter(course => !enrolledCourseIds.includes(course.id))
+      const recommended = coursesRes.data
+        .filter((course: Course) => !enrolledCourseIds.includes(course._id))
         .slice(0, 3);
       setRecommendedCourses(recommended);
 
@@ -79,7 +59,7 @@ const StudentDashboard: React.FC = () => {
   };
 
   const getEnrollmentProgress = (courseId: string) => {
-    const enrollment = enrollments.find(e => e.courseId === courseId);
+    const enrollment = enrollments.find(e => e.course_id === courseId);
     return enrollment?.progress || 0;
   };
 
@@ -115,193 +95,188 @@ const StudentDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex">
-        <Sidebar items={sidebarNavItems} className="w-1/4" />
-        <main className="w-3/4 pl-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">
-              Welcome back, {user?.name}!
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Continue your learning journey
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">
+          Welcome back, {user?.name}!
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Continue your learning journey
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Enrolled Courses</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{enrolledCourses.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {getInProgressCoursesCount()} in progress
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getCompletedCoursesCount()}</div>
+            <p className="text-xs text-muted-foreground">
+              Courses finished
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Learning Hours</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{Math.round(getTotalLearningHours())}</div>
+            <p className="text-xs text-muted-foreground">
+              Total hours
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Progress</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {enrollments.length > 0
+                ? Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)
+                : 0}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Average completion
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">Continue Learning</h2>
+            <Link to="/student/my-courses">
+              <Button variant="outline">View All</Button>
+            </Link>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {enrolledCourses.length === 0 ? (
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Enrolled Courses</CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{enrolledCourses.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  {getInProgressCoursesCount()} in progress
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  No enrolled courses yet
+                </h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  Start your learning journey by enrolling in a course
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed</CardTitle>
-                <Award className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{getCompletedCoursesCount()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Courses finished
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Learning Hours</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{Math.round(getTotalLearningHours())}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total hours
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Progress</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {enrollments.length > 0
-                    ? Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)
-                    : 0}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Average completion
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Continue Learning</h2>
-                <Link to="/student/my-courses">
-                  <Button variant="outline">View All</Button>
+                <Link to="/courses">
+                  <Button>Browse Courses</Button>
                 </Link>
-              </div>
-
-              {enrolledCourses.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">
-                      No enrolled courses yet
-                    </h3>
-                    <p className="text-muted-foreground text-center mb-4">
-                      Start your learning journey by enrolling in a course
-                    </p>
-                    <Link to="/courses">
-                      <Button>Browse Courses</Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {enrolledCourses.slice(0, 3).map((course) => {
-                    const progress = getEnrollmentProgress(course.id);
-                    return (
-                      <Card key={course.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <h3 className="font-semibold text-lg">{course.title}</h3>
-                                <Badge variant="secondary">{course.category}</Badge>
-                              </div>
-                              <p className="text-muted-foreground mb-4 line-clamp-2">
-                                {course.description}
-                              </p>
-                              <div className="flex items-center space-x-4 mb-4">
-                                <div className="flex items-center space-x-1">
-                                  <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                  <span className="text-sm">{course.ratingAverage}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Users className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm">{course.enrollmentCount} students</span>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">
-                                    Progress: {progress}%
-                                  </span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {course.modules.length} modules
-                                  </span>
-                                </div>
-                                <Progress value={progress} className="h-2" />
-                              </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {enrolledCourses.slice(0, 3).map((course) => {
+                const progress = getEnrollmentProgress(course._id);
+                return (
+                  <Card key={course._id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="font-semibold text-lg">{course.title}</h3>
+                            <Badge variant="secondary">{course.category}</Badge>
+                          </div>
+                          <p className="text-muted-foreground mb-4 line-clamp-2">
+                            {course.description}
+                          </p>
+                          <div className="flex items-center space-x-4 mb-4">
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                              <span className="text-sm">{course.ratingAverage}</span>
                             </div>
-                            <div className="ml-6">
-                              <Link to={`/courses/${course.id}/learn`}>
-                                <Button className="flex items-center space-x-2">
-                                  <Play className="h-4 w-4" />
-                                  <span>Continue</span>
-                                </Button>
-                              </Link>
+                            <div className="flex items-center space-x-1">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">{course.enrollmentCount} students</span>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">Recommended</h2>
-                <Link to="/courses">
-                  <Button variant="outline" size="sm">View All</Button>
-                </Link>
-              </div>
-
-              <div className="space-y-4">
-                {recommendedCourses.map((course) => (
-                  <Card key={course.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h4 className="font-medium text-sm">{course.title}</h4>
-                        {course.pricing === 0 && (
-                          <Badge variant="secondary" className="text-xs">Free</Badge>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                        {course.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1">
-                          <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                          <span className="text-xs">{course.ratingAverage}</span>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                Progress: {progress}%
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {course.modules.length} modules
+                              </span>
+                            </div>
+                            <Progress value={progress} className="h-2" />
+                          </div>
                         </div>
-                        <Link to={`/courses/${course.id}`}>
-                          <Button size="sm" variant="outline">View</Button>
-                        </Link>
+                        <div className="ml-6">
+                          <Link to={`/courses/${course._id}/learn`}>
+                            <Button className="flex items-center space-x-2">
+                              <Play className="h-4 w-4" />
+                              <span>Continue</span>
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold">Recommended</h2>
+            <Link to="/courses">
+              <Button variant="outline" size="sm">View All</Button>
+            </Link>
           </div>
-        </main>
+
+          <div className="space-y-4">
+            {recommendedCourses.map((course) => (
+              <Card key={course._id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h4 className="font-medium text-sm">{course.title}</h4>
+                    {course.pricing === 0 && (
+                      <Badge variant="secondary" className="text-xs">Free</Badge>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                    {course.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                      <span className="text-xs">{course.ratingAverage}</span>
+                    </div>
+                    <Link to={`/courses/${course._id}`}>
+                      <Button size="sm" variant="outline">View</Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

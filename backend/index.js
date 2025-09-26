@@ -11,6 +11,7 @@ const corsOptions = {
   origin: process.env.CORS_ORIGIN,
 };
 app.use(cors(corsOptions));
+app.use(express.json());
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -27,6 +28,7 @@ app.get('/api/healthz', (req, res) => {
 });
 
 // Routes
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/instructor', require('./routes/instructor'));

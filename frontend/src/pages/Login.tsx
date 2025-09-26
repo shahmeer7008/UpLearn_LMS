@@ -122,16 +122,6 @@ const Login: React.FC = () => {
               </Button>
             </form>
 
-            <div className="mt-6">
-              <Alert>
-                <AlertDescription>
-                  <strong>Demo Accounts:</strong><br />
-                  Student: student@example.com / password123<br />
-                  Instructor: instructor@example.com / password123<br />
-                  Admin: admin@example.com / password123
-                </AlertDescription>
-              </Alert>
-            </div>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">

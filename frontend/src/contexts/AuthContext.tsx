@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 interface AuthContextType {
   user: User | null;
@@ -24,84 +26,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('lms_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const token = localStorage.getItem('token');
+    if (token) {
+      const decoded: any = jwtDecode(token);
+      setUser(decoded.user);
     }
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    
-    // Mock authentication - in real app, this would call backend API
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        name: 'Sarah Student',
-        email: 'student@example.com',
-        role: 'student',
-        status: 'active',
-        createdDate: new Date().toISOString(),
-        lastModifiedDate: new Date().toISOString()
-      },
-      {
-        id: '2',
-        name: 'Mike Instructor',
-        email: 'instructor@example.com',
-        role: 'instructor',
-        status: 'active',
-        createdDate: new Date().toISOString(),
-        lastModifiedDate: new Date().toISOString()
-      },
-      {
-        id: '3',
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'admin',
-        status: 'active',
-        createdDate: new Date().toISOString(),
-        lastModifiedDate: new Date().toISOString()
-      }
-    ];
-
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser && password === 'password123') {
-      setUser(foundUser);
-      localStorage.setItem('lms_user', JSON.stringify(foundUser));
+    try {
+      const res = await axios.post('/api/auth/login', { email, password });
+      localStorage.setItem('token', res.data.token);
+      const decoded: any = jwtDecode(res.data.token);
+      setUser(decoded.user);
       setIsLoading(false);
       return true;
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+      return false;
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
   const register = async (name: string, email: string, password: string, role: 'student' | 'instructor'): Promise<boolean> => {
     setIsLoading(true);
-    
-    // Mock registration
-    const newUser: User = {
-      id: Date.now().toString(),
-      name,
-      email,
-      role,
-      status: 'active',
-      createdDate: new Date().toISOString(),
-      lastModifiedDate: new Date().toISOString()
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('lms_user', JSON.stringify(newUser));
-    setIsLoading(false);
-    return true;
+    try {
+      const res = await axios.post('/api/auth/register', { name, email, password, role });
+      localStorage.setItem('token', res.data.token);
+      const decoded: any = jwtDecode(res.data.token);
+      setUser(decoded.user);
+      setIsLoading(false);
+      return true;
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+      return false;
+    }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('lms_user');
+    localStorage.removeItem('token');
   };
 
   return (
