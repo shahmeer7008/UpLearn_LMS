@@ -65,7 +65,7 @@ const Register: React.FC = () => {
             <GraduationCap className="h-12 w-12 text-primary" />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            Join EduPlatform
+            Join UpLearn
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Create your account to start learning or teaching

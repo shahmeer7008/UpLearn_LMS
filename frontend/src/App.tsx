@@ -69,145 +69,147 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <div className="min-h-screen bg-background">
+          <div className="relative flex min-h-screen flex-col bg-background">
             <Navbar />
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/" element={<Index />} />
-              
-              {/* Course browsing and learning */}
-              <Route path="/courses" element={
-                <ProtectedRoute>
-                  <Courses />
-                </ProtectedRoute>
-              } />
-              <Route path="/courses/:id" element={
-                <ProtectedRoute>
-                  <CourseDetail />
-                </ProtectedRoute>
-              } />
-              <Route path="/courses/:id/learn" element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <CourseLearning />
-                </ProtectedRoute>
-              } />
-              <Route path="/wishlist" element={
-                <ProtectedRoute>
-                  <Wishlist />
-                </ProtectedRoute>
-              } />
-              
-              {/* Dashboard redirect */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <DashboardRedirect />
-                </ProtectedRoute>
-              } />
+            <div className="flex-1">
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/" element={<Index />} />
+                
+                {/* Course browsing and learning */}
+                <Route path="/courses" element={
+                  <ProtectedRoute>
+                    <Courses />
+                  </ProtectedRoute>
+                } />
+                <Route path="/courses/:id" element={
+                  <ProtectedRoute>
+                    <CourseDetail />
+                  </ProtectedRoute>
+                } />
+                <Route path="/courses/:id/learn" element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <CourseLearning />
+                  </ProtectedRoute>
+                } />
+                <Route path="/wishlist" element={
+                  <ProtectedRoute>
+                    <Wishlist />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Dashboard redirect */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <DashboardRedirect />
+                  </ProtectedRoute>
+                } />
 
-              {/* Common protected routes */}
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
+                {/* Common protected routes */}
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
 
-              {/* Student routes */}
-              <Route path="/student" element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <StudentDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/student/my-courses" element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <MyCourses />
-                </ProtectedRoute>
-              } />
-              <Route path="/student/certificates" element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <Certificates />
-                </ProtectedRoute>
-              } />
+                {/* Student routes */}
+                <Route path="/student" element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <StudentDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/student/my-courses" element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <MyCourses />
+                  </ProtectedRoute>
+                } />
+                <Route path="/student/certificates" element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <Certificates />
+                  </ProtectedRoute>
+                } />
 
-              {/* Instructor routes */}
-              <Route path="/instructor" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <InstructorDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/instructor/courses" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <ManageCourses />
-                </ProtectedRoute>
-              } />
-              <Route path="/instructor/courses/create" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <CreateCourse />
-                </ProtectedRoute>
-              } />
-              <Route path="/instructor/courses/:id/edit" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <EditCourse />
-                </ProtectedRoute>
-              } />
-              <Route path="/instructor/students" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <StudentManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/instructor/analytics" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <Analytics />
-                </ProtectedRoute>
-              } />
-              <Route path="/instructor/earnings" element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <EarningsDashboard />
-                </ProtectedRoute>
-              } />
+                {/* Instructor routes */}
+                <Route path="/instructor" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <InstructorDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/instructor/courses" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <ManageCourses />
+                  </ProtectedRoute>
+                } />
+                <Route path="/instructor/courses/create" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <CreateCourse />
+                  </ProtectedRoute>
+                } />
+                <Route path="/instructor/courses/:id/edit" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <EditCourse />
+                  </ProtectedRoute>
+                } />
+                <Route path="/instructor/students" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <StudentManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/instructor/analytics" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <Analytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/instructor/earnings" element={
+                  <ProtectedRoute allowedRoles={['instructor']}>
+                    <EarningsDashboard />
+                  </ProtectedRoute>
+                } />
 
-              {/* Admin routes */}
-              <Route path="/admin" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/users" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <UserManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/courses" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <CourseManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/analytics" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <PlatformAnalytics />
-                </ProtectedRoute>
-              } />
+                {/* Admin routes */}
+                <Route path="/admin" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/users" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/courses" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <CourseManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/analytics" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <PlatformAnalytics />
+                  </ProtectedRoute>
+                } />
 
-              {/* Unauthorized page */}
-              <Route path="/unauthorized" element={
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-4">403</h1>
-                    <p className="text-xl text-gray-600 mb-4">Access Denied</p>
-                    <p className="text-gray-500">You don't have permission to access this page.</p>
+                {/* Unauthorized page */}
+                <Route path="/unauthorized" element={
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                      <h1 className="text-4xl font-bold mb-4">403</h1>
+                      <p className="text-xl text-gray-600 mb-4">Access Denied</p>
+                      <p className="text-gray-500">You don't have permission to access this page.</p>
+                    </div>
                   </div>
-                </div>
-              } />
+                } />
 
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
           </div>
         </BrowserRouter>
       </AuthProvider>

@@ -47,7 +47,7 @@ const Index = () => {
               <GraduationCap className="h-16 w-16 text-primary" />
             </div>
             <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
-              Welcome to EduPlatform
+              Welcome to UpLearn
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
               Discover new skills, learn from expert instructors, and advance your career with our comprehensive online learning platform.
@@ -103,7 +103,7 @@ const Index = () => {
             
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-              Join thousands of learners who are already advancing their careers with EduPlatform.
+              Join thousands of learners who are already advancing their careers with UpLearn.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" onClick={() => navigate('/register')} className="text-lg px-8 py-3">

@@ -7,8 +7,6 @@ const courseSchema = new mongoose.Schema({
     instructor_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     pricing: { type: Number, required: true },
     status: { type: String, enum: ['pending', 'approved'], default: 'pending' },
-    isApproved: { type: Boolean, default: false },
-    modules: { type: Array, default: [] }
 });
 
 module.exports = mongoose.model('Course', courseSchema);

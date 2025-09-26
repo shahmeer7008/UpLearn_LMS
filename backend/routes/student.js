@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 
 // @route   POST api/courses/:id/enroll
 // @desc    Enroll in a course
 // @access  Private
-router.post('/courses/:id/enroll', auth, async (req, res) => {
+router.post('/courses/:id/enroll', authenticate, async (req, res) => {
     try {
         const course = await Course.findById(req.params.id);
         if (!course || course.status !== 'approved') {
@@ -30,7 +30,7 @@ router.post('/courses/:id/enroll', auth, async (req, res) => {
 // @route   GET api/student/my-courses
 // @desc    Get all courses for a student
 // @access  Private
-router.get('/my-courses', auth, async (req, res) => {
+router.get('/my-courses', authenticate, async (req, res) => {
     try {
         const enrollments = await Enrollment.find({ user_id: req.user.id }).populate('course_id');
         res.json(enrollments);

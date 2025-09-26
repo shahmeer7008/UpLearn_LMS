@@ -1,4 +1,4 @@
-# EduPlatform - Learning Management System
+# UpLearn - Learning Management System
 
 A comprehensive Learning Management System (LMS) that enables instructors to create and sell courses while providing students with an engaging learning experience through video content, PDFs, and quizzes, all managed through role-based dashboards.
 

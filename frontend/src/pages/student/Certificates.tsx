@@ -263,7 +263,7 @@ const Certificates: React.FC = () => {
 
                   <div className="text-center pt-2">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Certificate issued by EduPlatform
+                      Certificate issued by UpLearn
                     </p>
                   </div>
                 </CardContent>

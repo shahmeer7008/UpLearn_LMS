@@ -24,7 +24,6 @@ import {
   Heart
 } from 'lucide-react';
 import SearchBar from './SearchBar';
-import NotificationCenter from './NotificationCenter';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -67,7 +66,7 @@ const Navbar: React.FC = () => {
             <div className="flex items-center">
               <Link to="/" className="flex items-center space-x-2">
                 <GraduationCap className="h-8 w-8 text-primary" />
-                <span className="font-bold text-xl">EduPlatform</span>
+                <span className="font-bold text-xl">UpLearn</span>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
@@ -94,7 +93,7 @@ const Navbar: React.FC = () => {
           <div className="flex items-center space-x-4">
             <Link to={getDashboardLink()} className="flex items-center space-x-2">
               <GraduationCap className="h-8 w-8 text-primary" />
-              <span className="font-bold text-xl">EduPlatform</span>
+              <span className="font-bold text-xl">UpLearn</span>
             </Link>
 
             {/* Search Bar - Hidden on mobile */}
@@ -160,7 +159,6 @@ const Navbar: React.FC = () => {
             )}
 
             {/* Notifications */}
-            <NotificationCenter />
 
             <Button variant="ghost" onClick={toggleTheme}>
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
