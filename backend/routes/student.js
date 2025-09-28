@@ -85,6 +85,9 @@ router.post('/:id/certificates', async (req, res) => {
 router.get('/:id/enrollments', async (req, res) => {
     try {
         if (req.user._id !== req.params.id) {
+            console.log('ID mismatch:');
+            console.log('  - User ID from token:', req.user._id);
+            console.log('  - ID from URL params:', req.params.id);
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const enrollments = await Enrollment.find({ user_id: req.params.id }).populate('course_id', ['title', 'category']);
