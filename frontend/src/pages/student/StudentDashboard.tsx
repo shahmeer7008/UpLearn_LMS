@@ -18,7 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -33,26 +33,24 @@ const StudentDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     if (!user) return;
-
+    setIsLoading(true);
     try {
       const [enrollmentsRes, coursesRes] = await Promise.all([
-        axios.get(`/api/student/${user._id}/enrollments`),
-        axios.get(`/api/student/${user._id}/courses`)
+        api.get(`/enrollments?student_id=${user._id}`),
+        api.get('/courses'),
       ]);
-
       setEnrollments(enrollmentsRes.data);
-      
       const enrolledCourseIds = enrollmentsRes.data.map((e: Enrollment) => e.course_id);
-      const enrolled = coursesRes.data.filter((course: Course) => enrolledCourseIds.includes(course._id));
+      const enrolled = coursesRes.data.filter((c: Course) =>
+        enrolledCourseIds.includes(c._id)
+      );
       setEnrolledCourses(enrolled);
-
       const recommended = coursesRes.data
-        .filter((course: Course) => !enrolledCourseIds.includes(course._id))
+        .filter((c: Course) => !enrolledCourseIds.includes(c._id))
         .slice(0, 3);
       setRecommendedCourses(recommended);
-
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      // Error is handled by the axios interceptor
     } finally {
       setIsLoading(false);
     }

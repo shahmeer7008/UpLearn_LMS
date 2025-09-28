@@ -6,6 +6,7 @@ const instructorSchema = new Schema({
   courses: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
   bio: { type: String },
   // other instructor-specific fields
+  name: { type: String },
 });
 
 module.exports = mongoose.model('Instructor', instructorSchema);

@@ -187,4 +187,46 @@ router.get('/courses/:id/students', async (req, res) => {
     }
 });
 
+// @route   GET /api/instructor/:id/enrollments
+// @desc    Get all enrollments for a specific instructor
+// @access  Private (Instructor only)
+router.get('/:id/enrollments', async (req, res) => {
+    try {
+        if (req.user.id !== req.params.id) {
+            return res.status(403).json({ msg: 'User not authorized' });
+        }
+        const instructor = await Instructor.findOne({ user_id: req.params.id }).populate('courses');
+        if (!instructor) {
+            return res.status(404).json({ msg: 'Instructor not found' });
+        }
+        const courseIds = instructor.courses.map(course => course._id);
+        const enrollments = await Enrollment.find({ course_id: { $in: courseIds } }).populate('user_id', ['name', 'email']);
+        res.json(enrollments);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+// @route   GET /api/instructor/:id/payments
+// @desc    Get all payments for a specific instructor
+// @access  Private (Instructor only)
+router.get('/:id/payments', async (req, res) => {
+    try {
+        if (req.user.id !== req.params.id) {
+            return res.status(403).json({ msg: 'User not authorized' });
+        }
+        const instructor = await Instructor.findOne({ user_id: req.params.id }).populate('courses');
+        if (!instructor) {
+            return res.status(404).json({ msg: 'Instructor not found' });
+        }
+        const courseIds = instructor.courses.map(course => course._id);
+        const payments = await Payment.find({ course_id: { $in: courseIds } }).populate('user_id', ['name', 'email']);
+        res.json(payments);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
 module.exports = router;

@@ -108,8 +108,12 @@ const EditCourse: React.FC = () => {
       setHasEnrollments(enrollmentsRes.data.length > 0);
 
     } catch (error) {
-      console.error('Error loading course:', error);
-      navigate('/instructor/courses');
+     if (axios.isAxiosError(error) && error.response) {
+       showError(error.response.data.message || 'An error occurred while loading the course.');
+     } else {
+       showError('An unexpected error occurred.');
+     }
+     navigate('/instructor/courses');
     } finally {
       setIsLoading(false);
     }

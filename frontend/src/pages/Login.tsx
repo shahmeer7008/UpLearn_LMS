@@ -20,18 +20,11 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
-      const success = await login(email, password);
-      if (success) {
-        showSuccess('Login successful!');
-        // Navigation will be handled by the auth context
-        navigate('/');
-      } else {
-        showError('Invalid email or password');
-      }
+      await login(email, password);
+      navigate('/');
     } catch (error) {
-      showError('An error occurred during login');
+      // Error is handled by the axios interceptor
     } finally {
       setIsLoading(false);
     }

@@ -79,4 +79,36 @@ router.post('/:id/certificates', async (req, res) => {
   }
 });
 
+// @route   GET /api/student/:id/enrollments
+// @desc    Get all enrollments for a specific student
+// @access  Private (Student only)
+router.get('/:id/enrollments', async (req, res) => {
+    try {
+        if (req.user.id !== req.params.id) {
+            return res.status(403).json({ msg: 'User not authorized' });
+        }
+        const enrollments = await Enrollment.find({ user_id: req.params.id }).populate('course_id', ['title', 'category']);
+        res.json(enrollments);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+// @route   GET /api/student/:id/certificates
+// @desc    Get all certificates for a specific student
+// @access  Private (Student only)
+router.get('/:id/certificates', async (req, res) => {
+    try {
+        if (req.user.id !== req.params.id) {
+            return res.status(403).json({ msg: 'User not authorized' });
+        }
+        const certificates = await Certificate.find({ user_id: req.params.id }).populate('course_id', ['title']);
+        res.json(certificates);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
 module.exports = router;

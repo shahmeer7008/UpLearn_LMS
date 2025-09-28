@@ -25,10 +25,10 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     if (role === 'instructor') {
-      const instructor = new Instructor({ user_id: user.id });
+      const instructor = new Instructor({ user_id: user.id, name });
       await instructor.save();
     } else if (role === 'student') {
-      const student = new Student({ user_id: user.id });
+      const student = new Student({ user_id: user.id, name });
       await student.save();
     }
 
@@ -70,6 +70,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         role: user.role,
       },
+      name: user.name,
     };
     jwt.sign(
       payload,

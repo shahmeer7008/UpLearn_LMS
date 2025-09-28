@@ -66,7 +66,11 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
       }
       setWishlistCourses(courses);
     } catch (error) {
-      console.error('Error loading wishlist:', error);
+     if (axios.isAxiosError(error) && error.response) {
+       showError(error.response.data.message || 'An error occurred while loading the wishlist.');
+     } else {
+       showError('An unexpected error occurred.');
+     }
     }
   };
 

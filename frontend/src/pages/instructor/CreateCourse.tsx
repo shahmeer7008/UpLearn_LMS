@@ -19,7 +19,7 @@ import {
   Save
 } from 'lucide-react';
 import { Course, Module } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface CourseFormData {
@@ -115,45 +115,26 @@ const CreateCourse: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!user) {
       showError('User not authenticated');
       return;
     }
-
-    if (!courseData.title || !courseData.description || !courseData.category) {
-      showError('Please fill in all required course information');
-      return;
-    }
-
     if (modules.length === 0) {
-      showError('Please add at least one module to your course');
+      showError('Please add at least one module');
       return;
     }
-
     setIsLoading(true);
-
     try {
       const newCourse = {
-        title: courseData.title,
-        description: courseData.description,
-        category: courseData.category,
+        ...courseData,
         instructor_id: user._id,
-        pricing: courseData.pricing,
-        modules: modules.map((module, index) => ({
-          title: module.title,
-          type: module.type,
-          content_url: module.contentUrl,
-        }))
+        modules,
       };
-
-      await axios.post('/api/courses', newCourse);
-
-      showSuccess('Course created successfully! It will be reviewed by administrators before publication.');
-      navigate('/instructor/courses');
-
+      await api.post('/courses', newCourse);
+      showSuccess('Course created successfully!');
+      navigate('/instructor/dashboard');
     } catch (error) {
-      showError('Failed to create course');
+      // Error is handled by the axios interceptor
     } finally {
       setIsLoading(false);
     }

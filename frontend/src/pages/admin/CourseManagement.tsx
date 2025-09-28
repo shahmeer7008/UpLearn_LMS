@@ -69,7 +69,11 @@ const CourseManagement: React.FC = () => {
       const response = await axios.get('/api/admin/courses');
       setCourses(response.data);
     } catch (error) {
-      console.error('Error loading courses:', error);
+     if (axios.isAxiosError(error) && error.response) {
+       showError(error.response.data.message || 'An error occurred while loading courses.');
+     } else {
+       showError('An unexpected error occurred.');
+     }
     } finally {
       setIsLoading(false);
     }
@@ -128,13 +132,6 @@ const CourseManagement: React.FC = () => {
     }
   };
 
-  const getCourseStats = (courseId: string) => {
-    // This function will be removed as the data is now coming from the backend
-    return {
-      enrollments: 0,
-      revenue: 0
-    };
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -308,7 +305,6 @@ const CourseManagement: React.FC = () => {
           </div>
         ) : (
           filteredCourses.map((course) => {
-            const stats = getCourseStats(course._id);
             
             return (
               <Card key={course._id} className="hover:shadow-md transition-shadow">
@@ -338,7 +334,7 @@ const CourseManagement: React.FC = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Users className="h-4 w-4 text-gray-400" />
-                          <span>{stats.enrollments} enrolled</span>
+                          <span>{course.enrollmentCount} enrolled</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <DollarSign className="h-4 w-4 text-gray-400" />
@@ -355,7 +351,6 @@ const CourseManagement: React.FC = () => {
                           <Star className="h-4 w-4 text-yellow-400 fill-current" />
                           <span>{course.rating}</span>
                         </div>
-                        <span>Revenue: ${stats.revenue.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -471,12 +466,12 @@ const CourseManagement: React.FC = () => {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Course</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{course.title}"? This action cannot be undone.
-                              {stats.enrollments > 0 && (
-                                <span className="text-red-600 font-medium">
-                                  {' '}This course has {stats.enrollments} enrolled student{stats.enrollments > 1 ? 's' : ''}.
-                                </span>
-                              )}
+                             Are you sure you want to delete "{course.title}"? This action cannot be undone.
+                             {course.enrollmentCount > 0 && (
+                               <span className="text-red-600 font-medium">
+                                 {' '}This course has {course.enrollmentCount} enrolled student{course.enrollmentCount > 1 ? 's' : ''}.
+                               </span>
+                             )}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

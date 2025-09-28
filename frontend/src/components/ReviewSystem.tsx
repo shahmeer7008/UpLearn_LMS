@@ -18,6 +18,7 @@ import {
 import { Star, MessageSquare, ThumbsUp, Flag } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { Review } from '@/types';
+import axios from 'axios';
 
 interface ReviewSystemProps {
   course_id: string;
@@ -37,50 +38,18 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ course_id, userEnrollment }
     loadReviews();
   }, [course_id]);
 
-  const loadReviews = () => {
-    // Mock reviews data - in real app, this would come from API
-    const mockReviews: Review[] = [
-      {
-        _id: '1',
-        user_id: '1',
-        userName: 'Sarah Student',
-        course_id: course_id,
-        rating: 5,
-        comment: 'Excellent course! The instructor explains everything clearly and the hands-on projects really helped me understand the concepts.',
-        createdDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        helpful: 12,
-        reported: false
-      },
-      {
-        _id: '2',
-        user_id: '4',
-        userName: 'John Learner',
-        course_id: course_id,
-        rating: 4,
-        comment: 'Great content and well-structured. Could use more advanced examples, but overall very satisfied.',
-        createdDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-        helpful: 8,
-        reported: false
-      },
-      {
-        _id: '3',
-        user_id: '5',
-        userName: 'Emily Chen',
-        course_id: course_id,
-        rating: 5,
-        comment: 'This course exceeded my expectations. The practical exercises and real-world examples made learning enjoyable.',
-        createdDate: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
-        helpful: 15,
-        reported: false
-      }
-    ];
+ const loadReviews = async () => {
+   try {
+     const res = await axios.get(`/api/reviews/course/${course_id}`);
+     setReviews(res.data);
 
-    setReviews(mockReviews);
-    
-    // Check if current user has already reviewed
-    const existingReview = mockReviews.find(r => r.user_id === user?._id);
-    setUserReview(existingReview || null);
-  };
+     // Check if current user has already reviewed
+     const existingReview = res.data.find((r: Review) => r.user_id === user?._id);
+     setUserReview(existingReview || null);
+   } catch (error) {
+     console.error('Error loading reviews:', error);
+   }
+ };
 
   const handleSubmitReview = async () => {
     if (!user || !newRating || !newComment.trim()) {
@@ -91,30 +60,41 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ course_id, userEnrollment }
     setIsSubmitting(true);
 
     try {
-      const review: Review = {
-        _id: Date.now().toString(),
-        user_id: user._id,
-        userName: user.name,
-        userAvatar: user.profileImage,
-        course_id,
-        rating: newRating,
-        comment: newComment.trim(),
-        createdDate: new Date().toISOString(),
-        helpful: 0,
-        reported: false
-      };
+     if (userReview) {
+       // Update existing review
+       const res = await axios.put(`/api/reviews/${userReview._id}`, {
+         rating: newRating,
+         comment: newComment.trim(),
+       });
+       setReviews(prev => prev.map(r => r._id === userReview._id ? res.data : r));
+       showSuccess('Review updated successfully!');
+     } else {
+       // Add new review
+       const res = await axios.post('/api/reviews', {
+         user_id: user._id,
+         course_id,
+         rating: newRating,
+         comment: newComment.trim(),
+       });
+       setReviews(prev => [res.data, ...prev]);
+       showSuccess('Review submitted successfully!');
+     }
 
-      if (userReview) {
-        // Update existing review
-        setReviews(prev => prev.map(r => r._id === userReview._id ? review : r));
-        showSuccess('Review updated successfully!');
-      } else {
-        // Add new review
-        setReviews(prev => [review, ...prev]);
-        showSuccess('Review submitted successfully!');
-      }
-
-      setUserReview(review);
+     if (userReview) {
+       const res = await axios.put(`/api/reviews/${userReview._id}`, {
+         rating: newRating,
+         comment: newComment.trim(),
+       });
+       setUserReview(res.data);
+     } else {
+       const res = await axios.post('/api/reviews', {
+         user_id: user._id,
+         course_id,
+         rating: newRating,
+         comment: newComment.trim(),
+       });
+       setUserReview(res.data);
+     }
       setNewRating(0);
       setNewComment('');
       setShowReviewDialog(false);

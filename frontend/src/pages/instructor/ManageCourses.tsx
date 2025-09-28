@@ -19,7 +19,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 import { showSuccess, showError } from '@/utils/toast';
 
 const ManageCourses: React.FC = () => {
@@ -45,9 +45,9 @@ const ManageCourses: React.FC = () => {
 
     try {
       const [coursesRes, enrollmentsRes, paymentsRes] = await Promise.all([
-        axios.get(`/api/instructor/courses/${user._id}`),
-        axios.get(`/api/instructor/enrollments/${user._id}`),
-        axios.get(`/api/instructor/payments/${user._id}`)
+        api.get(`/instructor/${user._id}/courses`),
+        api.get(`/instructor/${user._id}/enrollments`),
+        api.get(`/instructor/${user._id}/payments`)
       ]);
 
       setInstructorCourses(coursesRes.data);
@@ -55,7 +55,7 @@ const ManageCourses: React.FC = () => {
       setPayments(paymentsRes.data);
 
     } catch (error) {
-      console.error('Error loading instructor courses:', error);
+     showError('Error loading instructor courses.');
     } finally {
       setIsLoading(false);
     }
@@ -123,11 +123,11 @@ const ManageCourses: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await axios.delete(`/api/courses/${courseId}`);
+      await api.delete(`/courses/${courseId}`);
       setInstructorCourses(prev => prev.filter(c => c._id !== courseId));
       showSuccess('Course deleted successfully');
     } catch (error) {
-      showError('Failed to delete course');
+     showError('Error deleting course.');
     }
   };
 

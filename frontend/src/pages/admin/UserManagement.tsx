@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { User } from '@/types';
 import { showSuccess, showError } from '@/utils/toast';
+import axios from 'axios';
 
 const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -59,50 +60,14 @@ const UserManagement: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      // Mock users data - in real app, this would come from API
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          name: 'Sarah Student',
-          email: 'student@example.com',
-          role: 'student',
-          status: 'active',
-          createdDate: '2024-01-15T10:00:00Z',
-          lastModifiedDate: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: '2',
-          name: 'Mike Instructor',
-          email: 'instructor@example.com',
-          role: 'instructor',
-          status: 'active',
-          createdDate: '2024-01-10T09:00:00Z',
-          lastModifiedDate: '2024-01-10T09:00:00Z'
-        },
-        {
-          id: '3',
-          name: 'Admin User',
-          email: 'admin@example.com',
-          role: 'admin',
-          status: 'active',
-          createdDate: '2024-01-01T08:00:00Z',
-          lastModifiedDate: '2024-01-01T08:00:00Z'
-        },
-        // Add more mock users
-        ...Array.from({ length: 15 }, (_, i) => ({
-          id: `user_${i + 4}`,
-          name: `User ${i + 4}`,
-          email: `user${i + 4}@example.com`,
-          role: Math.random() > 0.7 ? 'instructor' : 'student' as 'student' | 'instructor',
-          status: Math.random() > 0.1 ? 'active' : 'blocked' as 'active' | 'blocked',
-          createdDate: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-          lastModifiedDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
-        }))
-      ];
-
-      setUsers(mockUsers);
+      const response = await axios.get('/api/admin/users');
+      setUsers(response.data);
     } catch (error) {
-      console.error('Error loading users:', error);
+     if (axios.isAxiosError(error) && error.response) {
+       showError(error.response.data.message || 'An error occurred while loading users.');
+     } else {
+       showError('An unexpected error occurred.');
+     }
     } finally {
       setIsLoading(false);
     }
@@ -137,39 +102,34 @@ const UserManagement: React.FC = () => {
 
   const handleUserAction = async (userId: string, action: 'activate' | 'block' | 'delete' | 'promote' | 'demote') => {
     try {
-      setUsers(prev => prev.map(user => {
-        if (user.id === userId) {
-          switch (action) {
-            case 'activate':
-              return { ...user, status: 'active' as 'active' };
-            case 'block':
-              return { ...user, status: 'blocked' as 'blocked' };
-            case 'promote':
-              return { ...user, role: user.role === 'student' ? 'instructor' : 'admin' as 'instructor' | 'admin' };
-            case 'demote':
-              return { ...user, role: user.role === 'admin' ? 'instructor' : 'student' as 'instructor' | 'student' };
-            case 'delete':
-              return user; // Will be filtered out below
-            default:
-              return user;
-          }
-        }
-        return user;
-      }));
-
-      if (action === 'delete') {
-        setUsers(prev => prev.filter(user => user.id !== userId));
+      let response;
+      switch (action) {
+        case 'activate':
+        case 'block':
+          response = await axios.put(`/api/admin/users/${userId}/status`, { status: action === 'activate' ? 'active' : 'blocked' });
+          break;
+        case 'promote':
+        case 'demote':
+          response = await axios.put(`/api/admin/users/${userId}/role`, { action });
+          break;
+        case 'delete':
+          response = await axios.delete(`/api/admin/users/${userId}`);
+          break;
+        default:
+          return;
       }
 
-      const actionMessages = {
-        activate: 'User activated successfully',
-        block: 'User blocked successfully',
-        delete: 'User deleted successfully',
-        promote: 'User promoted successfully',
-        demote: 'User demoted successfully'
-      };
-
-      showSuccess(actionMessages[action]);
+      if (response.status === 200) {
+        loadUsers();
+        const actionMessages = {
+          activate: 'User activated successfully',
+          block: 'User blocked successfully',
+          delete: 'User deleted successfully',
+          promote: 'User promoted successfully',
+          demote: 'User demoted successfully'
+        };
+        showSuccess(actionMessages[action]);
+      }
     } catch (error) {
       showError(`Failed to ${action} user`);
     }
@@ -376,7 +336,7 @@ const UserManagement: React.FC = () => {
           ) : (
             <div className="space-y-4">
               {filteredUsers.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                <div key={user._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
                   <div className="flex items-center space-x-4">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={user.profileImage} alt={user.name} />
@@ -415,26 +375,26 @@ const UserManagement: React.FC = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {user.status === 'blocked' ? (
-                        <DropdownMenuItem onClick={() => handleUserAction(user.id, 'activate')}>
+                        <DropdownMenuItem onClick={() => handleUserAction(user._id, 'activate')}>
                           <UserCheck className="h-4 w-4 mr-2" />
                           Activate User
                         </DropdownMenuItem>
                       ) : (
-                        <DropdownMenuItem onClick={() => handleUserAction(user.id, 'block')}>
+                        <DropdownMenuItem onClick={() => handleUserAction(user._id, 'block')}>
                           <Ban className="h-4 w-4 mr-2" />
                           Block User
                         </DropdownMenuItem>
                       )}
                       
                       {user.role !== 'admin' && (
-                        <DropdownMenuItem onClick={() => handleUserAction(user.id, 'promote')}>
+                        <DropdownMenuItem onClick={() => handleUserAction(user._id, 'promote')}>
                           <Shield className="h-4 w-4 mr-2" />
                           Promote User
                         </DropdownMenuItem>
                       )}
                       
                       {user.role !== 'student' && (
-                        <DropdownMenuItem onClick={() => handleUserAction(user.id, 'demote')}>
+                        <DropdownMenuItem onClick={() => handleUserAction(user._id, 'demote')}>
                           <Shield className="h-4 w-4 mr-2" />
                           Demote User
                         </DropdownMenuItem>
@@ -445,7 +405,7 @@ const UserManagement: React.FC = () => {
                           <DropdownMenuItem 
                             onSelect={(e) => e.preventDefault()}
                             className="text-red-600"
-                            disabled={user.id === currentUser?.id}
+                            disabled={user._id === currentUser?._id}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete User
@@ -461,7 +421,7 @@ const UserManagement: React.FC = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleUserAction(user.id, 'delete')}
+                              onClick={() => handleUserAction(user._id, 'delete')}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Delete

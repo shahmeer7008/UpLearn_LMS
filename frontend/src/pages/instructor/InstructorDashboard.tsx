@@ -18,7 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 const InstructorDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -33,20 +33,18 @@ const InstructorDashboard: React.FC = () => {
 
   const loadInstructorData = async () => {
     if (!user) return;
-
+    setIsLoading(true);
     try {
       const [coursesRes, enrollmentsRes, paymentsRes] = await Promise.all([
-        axios.get(`/api/instructor/${user._id}/courses`),
-        axios.get(`/api/instructor/${user._id}/enrollments`),
-        axios.get(`/api/instructor/${user._id}/payments`)
+        api.get(`/courses?instructor_id=${user._id}`),
+        api.get(`/enrollments?instructor_id=${user._id}`),
+        api.get(`/payments?instructor_id=${user._id}`),
       ]);
-
       setInstructorCourses(coursesRes.data);
       setEnrollments(enrollmentsRes.data);
       setPayments(paymentsRes.data);
-
     } catch (error) {
-      console.error('Error loading instructor data:', error);
+      // Error is handled by the axios interceptor
     } finally {
       setIsLoading(false);
     }

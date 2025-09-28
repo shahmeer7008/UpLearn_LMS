@@ -17,7 +17,7 @@ import {
   Filter
 } from 'lucide-react';
 import { Course, Enrollment, User } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 interface StudentEnrollmentData {
   enrollment: Enrollment;
@@ -49,8 +49,8 @@ const StudentManagement: React.FC = () => {
 
     try {
       const [coursesRes, enrollmentsRes] = await Promise.all([
-        axios.get(`/api/instructor/courses/${user._id}`),
-        axios.get(`/api/instructor/enrollments/${user._id}`)
+        api.get(`/instructor/courses/${user._id}`),
+        api.get(`/instructor/enrollments/${user._id}`)
       ]);
 
       setInstructorCourses(coursesRes.data);
@@ -58,7 +58,7 @@ const StudentManagement: React.FC = () => {
       const combinedData: StudentEnrollmentData[] = await Promise.all(
         enrollmentsRes.data.map(async (enrollment: Enrollment) => {
           const course = coursesRes.data.find((c: Course) => c._id === enrollment.course_id)!;
-          const studentRes = await axios.get(`/api/users/${enrollment.user_id}`);
+          const studentRes = await api.get(`/users/${enrollment.user_id}`);
           return {
             enrollment,
             course,
@@ -71,7 +71,7 @@ const StudentManagement: React.FC = () => {
       setStudentData(combinedData);
 
     } catch (error) {
-      console.error('Error loading student data:', error);
+      // No need to show error here, it's handled by the interceptor
     } finally {
       setIsLoading(false);
     }

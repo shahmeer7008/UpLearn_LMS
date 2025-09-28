@@ -93,7 +93,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
                       <span className="text-xs">{course.rating}</span>
                     </div>
                     <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-gray-500">0 students</span>
+                   <span className="text-xs text-gray-500">{course.enrollmentCount} students</span>
                   </div>
                 </div>
                 <div className="text-right ml-2">
@@ -188,7 +188,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
               </div>
               <div className="flex items-center space-x-1">
                 <Users className="h-4 w-4" />
-                <span>0</span>
+               <span>{course.enrollmentCount}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-4 w-4" />
@@ -278,7 +278,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
           <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center space-x-1">
               <Users className="h-4 w-4" />
-              <span>0 students</span>
+             <span>{course.enrollmentCount} students</span>
             </div>
             <div className="flex items-center space-x-1">
               <Clock className="h-4 w-4" />

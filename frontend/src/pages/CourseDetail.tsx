@@ -20,7 +20,7 @@ import {
   Shield
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 import { showSuccess, showError } from '@/utils/toast';
 import PaymentModal from '@/components/PaymentModal';
 import ReviewSystem from '@/components/ReviewSystem';
@@ -45,19 +45,19 @@ const CourseDetail: React.FC = () => {
     if (!id) return;
 
     try {
-      const courseRes = await axios.get(`/api/courses/${id}`);
+      const courseRes = await api.get(`/courses/${id}`);
       setCourse(courseRes.data);
 
       if (user) {
         const [enrollmentRes, paymentRes] = await Promise.all([
-          axios.get(`/api/student/enrollment/${user._id}/${id}`),
-          axios.get(`/api/student/payment/${user._id}/${id}`)
+          api.get(`/student/enrollment/${user._id}/${id}`),
+          api.get(`/student/${user._id}/payment/${id}`)
         ]);
         setEnrollment(enrollmentRes.data);
         setHasPayment(!!paymentRes.data);
       }
     } catch (error) {
-      console.error('Error loading course data:', error);
+     showError('Error loading course data.');
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +77,7 @@ const CourseDetail: React.FC = () => {
 
     // For free courses or already paid courses, enroll directly
     try {
-      const res = await axios.post('/api/enrollments', {
+      const res = await api.post('/enrollments', {
         user_id: user._id,
         course_id: course._id,
       });
@@ -85,7 +85,7 @@ const CourseDetail: React.FC = () => {
 
       showSuccess('Successfully enrolled in course!');
     } catch (error) {
-      showError('Failed to enroll in course');
+     showError('Error enrolling in course.');
     }
   };
 
@@ -93,7 +93,7 @@ const CourseDetail: React.FC = () => {
     if (!user || !course) return;
 
     try {
-      await axios.post('/api/payments', {
+      await api.post('/payments', {
         user_id: user._id,
         course_id: course._id,
         amount: course.pricing,
@@ -101,7 +101,7 @@ const CourseDetail: React.FC = () => {
         transaction_id: paymentData.transaction_id,
       });
 
-      const res = await axios.post('/api/enrollments', {
+      const res = await api.post('/enrollments', {
         user_id: user._id,
         course_id: course._id,
       });
@@ -109,7 +109,7 @@ const CourseDetail: React.FC = () => {
       setEnrollment(res.data);
       setHasPayment(true);
     } catch (error) {
-      showError('Failed to process enrollment after payment');
+     showError('Error processing payment.');
     }
   };
 
@@ -181,7 +181,7 @@ const CourseDetail: React.FC = () => {
               </div>
               <div className="flex items-center space-x-1">
                 <Users className="h-5 w-5 text-gray-400" />
-                <span>0 students</span>
+                <span>{course.enrollmentCount} students</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-5 w-5 text-gray-400" />

@@ -17,7 +17,7 @@ import {
   Plus
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 interface CourseAnalytics {
   course: Course;
@@ -44,12 +44,12 @@ const Analytics: React.FC = () => {
     if (!user) return;
 
     try {
-      const response = await axios.get('/api/instructor/analytics');
+      const response = await api.get(`/instructor/${user._id}/analytics`);
       const analytics: CourseAnalytics[] = response.data;
       setCourseAnalytics(analytics);
       setInstructorCourses(analytics.map(a => a.course));
     } catch (error) {
-      console.error('Error loading analytics data:', error);
+      // No need to show error here, it's handled by the interceptor
     } finally {
       setIsLoading(false);
     }

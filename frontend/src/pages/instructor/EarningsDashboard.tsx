@@ -23,7 +23,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Course, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 interface EarningsData {
   totalEarnings: number;
@@ -61,8 +61,8 @@ const EarningsDashboard: React.FC = () => {
 
     try {
       const [coursesRes, paymentsRes] = await Promise.all([
-        axios.get(`/api/instructor/courses/${user._id}`),
-        axios.get(`/api/instructor/payments/${user._id}`)
+        api.get(`/instructor/${user._id}/courses`),
+        api.get(`/instructor/payments/${user._id}`)
       ]);
 
       const instructorCourses = coursesRes.data;
@@ -107,7 +107,7 @@ const EarningsDashboard: React.FC = () => {
 
       setEarningsData(data);
     } catch (error) {
-      console.error('Error loading earnings data:', error);
+      // No need to show error here, it's handled by the interceptor
     } finally {
       setIsLoading(false);
     }

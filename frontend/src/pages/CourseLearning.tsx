@@ -22,7 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Course, Enrollment, Module, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 import { showSuccess, showError } from '@/utils/toast';
 import QuizPlayer from '@/components/QuizPlayer';
 import PaymentModal from '@/components/PaymentModal';
@@ -50,9 +50,9 @@ const CourseLearning: React.FC = () => {
 
     try {
       const [courseRes, enrollmentRes, paymentRes] = await Promise.all([
-        axios.get(`/api/courses/${id}`),
-        axios.get(`/api/student/enrollment/${user._id}/${id}`),
-        axios.get(`/api/student/payment/${user._id}/${id}`)
+        api.get(`/courses/${id}`),
+        api.get(`/student/enrollment/${user._id}/${id}`),
+        api.get(`/student/${user._id}/payment/${id}`)
       ]);
 
       if (!courseRes.data) {
@@ -75,8 +75,8 @@ const CourseLearning: React.FC = () => {
       setCurrentModuleIndex(lastCompletedIndex === -1 ? 0 : lastCompletedIndex);
 
     } catch (error) {
-      console.error('Error loading course data:', error);
-      navigate('/courses');
+     showError('Error loading course data.');
+     navigate('/courses');
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +86,7 @@ const CourseLearning: React.FC = () => {
     if (!user || !course) return;
 
     try {
-      await axios.post('/api/payments', {
+      await api.post('/payments', {
         user_id: user._id,
         course_id: course._id,
         amount: course.pricing,
@@ -97,7 +97,7 @@ const CourseLearning: React.FC = () => {
       setHasPayment(true);
       showSuccess('Payment successful! You now have full access to the course.');
     } catch (error) {
-      showError('Failed to process payment');
+     showError('Error processing payment.');
     }
   };
 
@@ -113,7 +113,7 @@ const CourseLearning: React.FC = () => {
       const progress = Math.round((completedModules.length / course.modules.length) * 100);
       const completionStatus = progress === 100 ? 'completed' : 'in-progress';
 
-      const res = await axios.put(`/api/student/enrollment/${enrollment._id}`, {
+      const res = await api.put(`/student/enrollment/${enrollment._id}`, {
         completedModules,
         progress,
         completionStatus,
@@ -122,7 +122,7 @@ const CourseLearning: React.FC = () => {
       setEnrollment(res.data);
 
       if (res.data.progress === 100) {
-        await axios.post('/api/certificates', {
+        await api.post('/certificates', {
           user_id: user._id,
           course_id: course._id,
           certificate_url: `/certificates/cert-${course._id}-${user._id}.pdf`,
@@ -139,7 +139,7 @@ const CourseLearning: React.FC = () => {
       setShowQuiz(false);
 
     } catch (error) {
-      showError('Failed to update progress');
+     showError('Error updating module progress.');
     }
   };
 

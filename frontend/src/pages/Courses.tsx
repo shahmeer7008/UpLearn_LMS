@@ -41,7 +41,11 @@ const Courses: React.FC = () => {
       const res = await axios.get('/api/courses');
       setCourses(res.data);
     } catch (error) {
-      console.error('Error loading courses:', error);
+     if (axios.isAxiosError(error) && error.response) {
+       console.error('Error loading courses:', error.response.data.message);
+     } else {
+       console.error('An unexpected error occurred.');
+     }
     } finally {
       setIsLoading(false);
     }

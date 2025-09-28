@@ -14,7 +14,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { Certificate } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 import { showSuccess } from '@/utils/toast';
 
 const Certificates: React.FC = () => {
@@ -36,10 +36,10 @@ const Certificates: React.FC = () => {
     if (!user) return;
 
     try {
-      const res = await axios.get(`/api/student/certificates/${user._id}`);
+      const res = await api.get(`/student/${user._id}/certificates`);
       setCertificates(res.data);
     } catch (error) {
-      console.error('Error loading certificates:', error);
+      // No need to show error here, it's handled by the interceptor
     } finally {
       setIsLoading(false);
     }

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Course, Enrollment, Payment, User } from '@/types';
 import { showSuccess, showError } from '@/utils/toast';
-import axios from 'axios';
+import api from '@/services/api';
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -36,45 +36,31 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   const loadAdminData = async () => {
+    setIsLoading(true);
     try {
-      const [coursesRes, enrollmentsRes, paymentsRes, usersRes] = await Promise.all([
-        axios.get('/api/courses'),
-        axios.get('/api/enrollments'),
-        axios.get('/api/payments'),
-        axios.get('/api/users')
+      const [coursesRes, usersRes, paymentsRes] = await Promise.all([
+        api.get('/courses'),
+        api.get('/users'),
+        api.get('/payments'),
       ]);
-
       setAllCourses(coursesRes.data);
       setPendingCourses(coursesRes.data.filter((c: Course) => c.status === 'pending'));
-      setEnrollments(enrollmentsRes.data);
-      setPayments(paymentsRes.data);
       setUsers(usersRes.data);
-
+      setPayments(paymentsRes.data);
     } catch (error) {
-      console.error('Error loading admin data:', error);
+      // Error is handled by the axios interceptor
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCourseApproval = async (courseId: string, approved: boolean) => {
+  const handleCourseApproval = async (courseId: string, status: 'approved' | 'rejected') => {
     try {
-      await axios.put(`/api/admin/courses/${courseId}`, {
-        status: approved ? 'approved' : 'archived'
-      });
-      
-      const updatedCourses = allCourses.map((course: Course) =>
-        course._id === courseId
-          ? { ...course, status: approved ? 'approved' : ('archived' as 'pending' | 'approved' | 'archived') }
-          : course
-      );
-      
-      setAllCourses(updatedCourses);
-      setPendingCourses(updatedCourses.filter(c => c.status === 'pending'));
-      
-      showSuccess(`Course ${approved ? 'approved' : 'rejected'} successfully`);
+      await api.put(`/courses/${courseId}/status`, { status });
+      showSuccess(`Course ${status} successfully`);
+      loadAdminData();
     } catch (error) {
-      showError('Failed to update course status');
+      // Error is handled by the axios interceptor
     }
   };
 
@@ -241,7 +227,7 @@ const AdminDashboard: React.FC = () => {
                         </Link>
                         <Button
                           size="sm"
-                          onClick={() => handleCourseApproval(course._id, true)}
+                          onClick={() => handleCourseApproval(course._id, "approved")}
                           className="bg-green-600 hover:bg-green-700"
                         >
                           <CheckCircle className="h-4 w-4" />
@@ -249,7 +235,7 @@ const AdminDashboard: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleCourseApproval(course._id, false)}
+                          onClick={() => handleCourseApproval(course._id, "rejected")}
                           className="text-red-600 hover:text-red-700"
                         >
                           <XCircle className="h-4 w-4" />

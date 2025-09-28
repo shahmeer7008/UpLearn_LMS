@@ -18,7 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 const MyCourses: React.FC = () => {
   const { user } = useAuth();
@@ -42,8 +42,8 @@ const MyCourses: React.FC = () => {
 
     try {
       const [coursesRes, enrollmentsRes] = await Promise.all([
-        axios.get('/api/courses'),
-        axios.get(`/api/student/enrollments/${user._id}`)
+        api.get(`/student/${user._id}/courses`),
+        api.get(`/student/${user._id}/enrollments`)
       ]);
 
       setEnrollments(enrollmentsRes.data);
@@ -53,7 +53,7 @@ const MyCourses: React.FC = () => {
       setEnrolledCourses(enrolled);
 
     } catch (error) {
-      console.error('Error loading enrolled courses:', error);
+     console.error('Error loading courses:', error);
     } finally {
       setIsLoading(false);
     }

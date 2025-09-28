@@ -55,6 +55,7 @@ export interface Enrollment {
   enrollmentDate: string;
   completedModules?: string[];
   lastAccessedDate: string;
+  courseName?: string;
 }
 
 export interface Payment {
@@ -66,6 +67,7 @@ export interface Payment {
   paymentDate: string;
   transaction_id?: string;
   courseName?: string;
+  studentName?: string;
 }
 
 export interface Certificate {

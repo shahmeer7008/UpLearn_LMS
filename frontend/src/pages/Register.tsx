@@ -25,29 +25,16 @@ const Register: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (formData.password !== formData.confirmPassword) {
       showError('Passwords do not match');
       return;
     }
-
-    if (formData.password.length < 6) {
-      showError('Password must be at least 6 characters long');
-      return;
-    }
-
     setIsLoading(true);
-
     try {
-      const success = await register(formData.name, formData.email, formData.password, formData.role);
-      if (success) {
-        showSuccess('Account created successfully!');
-        navigate('/');
-      } else {
-        showError('Failed to create account');
-      }
+      await register(formData.name, formData.email, formData.password, formData.role);
+      navigate('/');
     } catch (error) {
-      showError('An error occurred during registration');
+      // Error is handled by the axios interceptor
     } finally {
       setIsLoading(false);
     }

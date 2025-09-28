@@ -22,15 +22,25 @@ import { Course, Enrollment, Payment, User } from '@/types';
 import axios from 'axios';
 
 interface PlatformStats {
-  totalUsers: number;
-  totalCourses: number;
-  totalEnrollments: number;
-  totalRevenue: number;
-  completionRate: number;
-  activeUsers: number;
-  pendingCourses: number;
-  topCategories: { category: string; count: number }[];
-  recentActivity: any[];
+ totalUsers: number;
+ totalCourses: number;
+ totalEnrollments: number;
+ totalRevenue: number;
+ completionRate: number;
+ activeUsers: number;
+ pendingCourses: number;
+ topCategories: { category: string; count: number }[];
+ recentActivity: any[];
+ userGrowth: number;
+ courseGrowth: number;
+ revenueGrowth: number;
+ enrollmentGrowth: number;
+ studentCount: number;
+ instructorCount: number;
+ adminCount: number;
+ studentPercentage: number;
+ instructorPercentage: number;
+ adminPercentage: number;
 }
 
 const PlatformAnalytics: React.FC = () => {
@@ -48,34 +58,18 @@ const PlatformAnalytics: React.FC = () => {
       const response = await axios.get('/api/admin/stats');
       const stats = response.data;
 
-      // Generate recent activity (can be replaced with a real-time feed)
-      const recentActivity = [
-        { type: 'enrollment', message: 'New student enrolled in React Development', time: '2 hours ago' },
-        { type: 'course', message: 'New course submitted for review', time: '4 hours ago' },
-        { type: 'completion', message: 'Student completed Python for Data Science', time: '6 hours ago' },
-        { type: 'payment', message: 'Payment received for Digital Marketing course', time: '8 hours ago' },
-        { type: 'user', message: 'New instructor registered', time: '1 day ago' }
-      ];
-
-      setPlatformStats({ ...stats, recentActivity });
-    } catch (error) {
-      console.error('Error loading platform stats:', error);
+     setPlatformStats(stats);
+   } catch (error) {
+     if (axios.isAxiosError(error) && error.response) {
+       console.error('Error loading platform stats:', error.response.data.message);
+     } else {
+       console.error('An unexpected error occurred.');
+     }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getGrowthMetrics = () => {
-    // Mock growth data
-    return {
-      userGrowth: 15.2,
-      courseGrowth: 8.7,
-      revenueGrowth: 23.4,
-      enrollmentGrowth: 12.8
-    };
-  };
-
-  const growth = getGrowthMetrics();
 
   if (isLoading || !platformStats) {
     return (
@@ -128,7 +122,7 @@ const PlatformAnalytics: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{platformStats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{growth.userGrowth}%</span> from last month
+              <span className="text-green-600">+{platformStats.userGrowth}%</span> from last month
             </p>
           </CardContent>
         </Card>
@@ -141,7 +135,7 @@ const PlatformAnalytics: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{platformStats.totalCourses}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{growth.courseGrowth}%</span> from last month
+              <span className="text-green-600">+{platformStats.courseGrowth}%</span> from last month
             </p>
           </CardContent>
         </Card>
@@ -154,7 +148,7 @@ const PlatformAnalytics: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">${platformStats.totalRevenue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{growth.revenueGrowth}%</span> from last month
+              <span className="text-green-600">+{platformStats.revenueGrowth}%</span> from last month
             </p>
           </CardContent>
         </Card>
@@ -167,7 +161,7 @@ const PlatformAnalytics: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{platformStats.totalEnrollments}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{growth.enrollmentGrowth}%</span> from last month
+              <span className="text-green-600">+{platformStats.enrollmentGrowth}%</span> from last month
             </p>
           </CardContent>
         </Card>
@@ -270,24 +264,24 @@ const PlatformAnalytics: React.FC = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {Math.round((platformStats.totalUsers * 0.8))}
+                   {platformStats.studentCount}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Students</p>
-                  <Badge variant="outline" className="mt-1">80%</Badge>
+                 <Badge variant="outline" className="mt-1">{platformStats.studentPercentage}%</Badge>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {Math.round((platformStats.totalUsers * 0.15))}
+                   {platformStats.instructorCount}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Instructors</p>
-                  <Badge variant="outline" className="mt-1">15%</Badge>
+                 <Badge variant="outline" className="mt-1">{platformStats.instructorPercentage}%</Badge>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">
-                    {Math.round((platformStats.totalUsers * 0.05))}
+                   {platformStats.adminCount}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Admins</p>
-                  <Badge variant="outline" className="mt-1">5%</Badge>
+                 <Badge variant="outline" className="mt-1">{platformStats.adminPercentage}%</Badge>
                 </div>
               </div>
             </CardContent>

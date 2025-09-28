@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
-import axios from 'axios';
+import api from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, role: 'student' | 'instructor') => Promise<boolean>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role: 'student' | 'instructor') => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -29,41 +29,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('token');
     if (token) {
       const decoded: any = jwtDecode(token);
-      setUser(decoded.user);
+      setUser({ ...decoded.user, name: decoded.name });
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const res = await axios.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', res.data.token);
-      const decoded: any = jwtDecode(res.data.token);
-      setUser(decoded.user);
-      setIsLoading(false);
-      return true;
-    } catch (err) {
-      console.error(err);
-      setIsLoading(false);
-      return false;
-    }
+  const login = async (email: string, password: string) => {
+    const res = await api.post('/auth/login', { email, password });
+    const { token } = res.data;
+    localStorage.setItem('token', token);
+    const decoded: any = jwtDecode(token);
+    setUser(decoded.user);
   };
 
-  const register = async (name: string, email: string, password: string, role: 'student' | 'instructor'): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const res = await axios.post('/api/auth/register', { name, email, password, role });
-      localStorage.setItem('token', res.data.token);
-      const decoded: any = jwtDecode(res.data.token);
-      setUser(decoded.user);
-      setIsLoading(false);
-      return true;
-    } catch (err) {
-      console.error(err);
-      setIsLoading(false);
-      return false;
-    }
+  const register = async (name: string, email: string, password: string, role: 'student' | 'instructor') => {
+    const res = await api.post('/auth/register', { name, email, password, role });
+    const { token } = res.data;
+    localStorage.setItem('token', token);
+    const decoded: any = jwtDecode(token);
+    setUser(decoded.user);
   };
 
   const logout = () => {
