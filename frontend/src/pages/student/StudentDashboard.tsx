@@ -36,8 +36,8 @@ const StudentDashboard: React.FC = () => {
 
     try {
       const [enrollmentsRes, coursesRes] = await Promise.all([
-        axios.get(`/api/student/enrollments/${user._id}`),
-        axios.get('/api/courses')
+        axios.get(`/api/student/${user._id}/enrollments`),
+        axios.get(`/api/student/${user._id}/courses`)
       ]);
 
       setEnrollments(enrollmentsRes.data);

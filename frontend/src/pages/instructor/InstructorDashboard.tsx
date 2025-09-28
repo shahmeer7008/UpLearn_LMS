@@ -36,9 +36,9 @@ const InstructorDashboard: React.FC = () => {
 
     try {
       const [coursesRes, enrollmentsRes, paymentsRes] = await Promise.all([
-        axios.get(`/api/instructor/courses/${user._id}`),
-        axios.get(`/api/instructor/enrollments/${user._id}`),
-        axios.get(`/api/instructor/payments/${user._id}`)
+        axios.get(`/api/instructor/${user._id}/courses`),
+        axios.get(`/api/instructor/${user._id}/enrollments`),
+        axios.get(`/api/instructor/${user._id}/payments`)
       ]);
 
       setInstructorCourses(coursesRes.data);
@@ -53,26 +53,26 @@ const InstructorDashboard: React.FC = () => {
   };
 
   const getTotalRevenue = () => {
-    return payments.reduce((total, payment) => total + payment.amount, 0);
+    return Array.isArray(payments) ? payments.reduce((total, payment) => total + payment.amount, 0) : 0;
   };
 
   const getTotalStudents = () => {
-    return enrollments.length;
+    return Array.isArray(enrollments) ? enrollments.length : 0;
   };
 
   const getActiveStudents = () => {
-    return enrollments.filter(e => e.completionStatus === 'in-progress').length;
+    return Array.isArray(enrollments) ? enrollments.filter(e => e.completionStatus === 'in-progress').length : 0;
   };
 
   const getCompletionRate = () => {
-    if (enrollments.length === 0) return 0;
+    if (!Array.isArray(enrollments) || enrollments.length === 0) return 0;
     const completed = enrollments.filter(e => e.completionStatus === 'completed').length;
     return Math.round((completed / enrollments.length) * 100);
   };
 
   const getCourseStats = (courseId: string) => {
-    const courseEnrollments = enrollments.filter(e => e.course_id === courseId);
-    const coursePayments = payments.filter(p => p.course_id === courseId);
+    const courseEnrollments = Array.isArray(enrollments) ? enrollments.filter(e => e.course_id === courseId) : [];
+    const coursePayments = Array.isArray(payments) ? payments.filter(p => p.course_id === courseId) : [];
     
     return {
       students: courseEnrollments.length,
@@ -126,9 +126,9 @@ const InstructorDashboard: React.FC = () => {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{instructorCourses.length}</div>
+            <div className="text-2xl font-bold">{Array.isArray(instructorCourses) ? instructorCourses.length : 0}</div>
             <p className="text-xs text-muted-foreground">
-              {instructorCourses.filter(c => c.status === 'approved').length} published
+              {Array.isArray(instructorCourses) ? instructorCourses.filter(c => c.status === 'approved').length : 0} published
             </p>
           </CardContent>
         </Card>
@@ -185,7 +185,7 @@ const InstructorDashboard: React.FC = () => {
             </Link>
           </div>
 
-          {instructorCourses.length === 0 ? (
+          {!Array.isArray(instructorCourses) || instructorCourses.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -202,7 +202,7 @@ const InstructorDashboard: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-4">
-              {instructorCourses.slice(0, 5).map((course) => {
+              {Array.isArray(instructorCourses) && instructorCourses.slice(0, 5).map((course) => {
                 const stats = getCourseStats(course._id);
                 return (
                   <Card key={course._id} className="hover:shadow-md transition-shadow">
@@ -250,7 +250,7 @@ const InstructorDashboard: React.FC = () => {
                   </Card>
                 );
               })}
-              {instructorCourses.length > 5 && (
+              {Array.isArray(instructorCourses) && instructorCourses.length > 5 && (
                 <div className="text-center">
                   <Link to="/instructor/courses">
                     <Button variant="outline">View All Courses</Button>
@@ -296,8 +296,8 @@ const InstructorDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 text-sm">
-                  {enrollments.slice(0, 3).map((enrollment) => {
-                    const course = instructorCourses.find(c => c._id === enrollment.course_id);
+                  {Array.isArray(enrollments) && enrollments.slice(0, 3).map((enrollment) => {
+                    const course = Array.isArray(instructorCourses) ? instructorCourses.find(c => c._id === enrollment.course_id) : null;
                     return (
                       <div key={enrollment._id} className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -307,7 +307,7 @@ const InstructorDashboard: React.FC = () => {
                       </div>
                     );
                   })}
-                  {enrollments.length === 0 && (
+                  {(!Array.isArray(enrollments) || enrollments.length === 0) && (
                     <p className="text-muted-foreground text-center py-4">No recent activity</p>
                   )}
                 </div>

@@ -3,6 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Instructor = require('../models/Instructor');
+const Student = require('../models/Student');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -21,6 +23,15 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
     await user.save();
+
+    if (role === 'instructor') {
+      const instructor = new Instructor({ user_id: user.id });
+      await instructor.save();
+    } else if (role === 'student') {
+      const student = new Student({ user_id: user.id });
+      await student.save();
+    }
+
     const payload = {
       user: {
         id: user.id,

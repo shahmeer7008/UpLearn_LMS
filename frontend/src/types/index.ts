@@ -18,7 +18,7 @@ export interface Course {
   category: string;
   instructorId: string;
   pricing: number; // 0 for free courses
-  status: 'pending' | 'approved' | 'archived' | 'published';
+  status: 'pending' | 'approved' | 'archived';
   createdDate: string;
   lastModifiedDate: string;
   coverImage?: string;
