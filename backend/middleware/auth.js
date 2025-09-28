@@ -9,6 +9,7 @@ const authenticate = (req, res, next) => {
     try {
         const decoded = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET);
         req.user = decoded.user;
+        console.log('Decoded token:', decoded);
         next();
     } catch (err) {
         res.status(401).json({ message: 'Token is not valid' });

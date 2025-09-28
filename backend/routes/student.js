@@ -14,7 +14,7 @@ router.use(authenticate, authorize('student'));
 // @access  Private (Student only)
 router.get('/:id/courses', async (req, res) => {
     try {
-        if (req.user.id !== req.params.id) {
+        if (req.user._id !== req.params.id) {
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const student = await Student.findOne({ user_id: req.params.id }).populate('enrolledCourses');
@@ -31,7 +31,7 @@ router.get('/:id/courses', async (req, res) => {
 // Get user's enrollment for a course
 router.get('/:id/enrollment/:courseId', async (req, res) => {
   try {
-    if (req.user.id !== req.params.id) {
+    if (req.user._id !== req.params.id) {
         return res.status(403).json({ msg: 'User not authorized' });
     }
     const enrollment = await Enrollment.findOne({ user_id: req.params.id, course_id: req.params.courseId });
@@ -45,7 +45,7 @@ router.get('/:id/enrollment/:courseId', async (req, res) => {
 // Get user's payment for a course
 router.get('/:id/payment/:courseId', async (req, res) => {
   try {
-    if (req.user.id !== req.params.id) {
+    if (req.user._id !== req.params.id) {
         return res.status(403).json({ msg: 'User not authorized' });
     }
     const payment = await Payment.findOne({ user_id: req.params.id, course_id: req.params.courseId });
@@ -84,7 +84,7 @@ router.post('/:id/certificates', async (req, res) => {
 // @access  Private (Student only)
 router.get('/:id/enrollments', async (req, res) => {
     try {
-        if (req.user.id !== req.params.id) {
+        if (req.user._id !== req.params.id) {
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const enrollments = await Enrollment.find({ user_id: req.params.id }).populate('course_id', ['title', 'category']);
@@ -100,7 +100,7 @@ router.get('/:id/enrollments', async (req, res) => {
 // @access  Private (Student only)
 router.get('/:id/certificates', async (req, res) => {
     try {
-        if (req.user.id !== req.params.id) {
+        if (req.user._id !== req.params.id) {
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const certificates = await Certificate.find({ user_id: req.params.id }).populate('course_id', ['title']);

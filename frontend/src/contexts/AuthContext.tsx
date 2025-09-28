@@ -29,7 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('token');
     if (token) {
       const decoded: any = jwtDecode(token);
-      setUser({ ...decoded.user, name: decoded.name });
+      const decodedUser = decoded.user || decoded;
+      setUser({ ...decodedUser, _id: decodedUser.id || decodedUser._id, name: decodedUser.name });
     }
     setIsLoading(false);
   }, []);
@@ -39,7 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { token } = res.data;
     localStorage.setItem('token', token);
     const decoded: any = jwtDecode(token);
-    setUser(decoded.user);
+    const decodedUser = decoded.user || decoded;
+    setUser({ ...decodedUser, _id: decodedUser.id || decodedUser._id, name: decodedUser.name });
   };
 
   const register = async (name: string, email: string, password: string, role: 'student' | 'instructor') => {
@@ -47,7 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { token } = res.data;
     localStorage.setItem('token', token);
     const decoded: any = jwtDecode(token);
-    setUser(decoded.user);
+    const decodedUser = decoded.user || decoded;
+    setUser({ ...decodedUser, _id: decodedUser.id || decodedUser._id, name: decodedUser.name });
   };
 
   const logout = () => {

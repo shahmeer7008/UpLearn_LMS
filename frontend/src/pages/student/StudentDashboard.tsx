@@ -21,22 +21,24 @@ import { Course, Enrollment } from '@/types';
 import api from '@/services/api';
 
 const StudentDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [user]);
+    if (!isAuthLoading && user) {
+      loadDashboardData();
+    }
+  }, [user, isAuthLoading]);
 
   const loadDashboardData = async () => {
     if (!user) return;
     setIsLoading(true);
     try {
       const [enrollmentsRes, coursesRes] = await Promise.all([
-        api.get(`/enrollments?student_id=${user._id}`),
+        api.get(`/student/${user._id}/enrollments`),
         api.get('/courses'),
       ]);
       setEnrollments(enrollmentsRes.data);
@@ -76,7 +78,7 @@ const StudentDashboard: React.FC = () => {
     }, 0);
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
