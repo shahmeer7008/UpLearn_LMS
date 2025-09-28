@@ -31,7 +31,7 @@ const ManageCourses: React.FC = () => {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
+//use effect
   useEffect(() => {
     loadInstructorCourses();
   }, [user]);
