@@ -32,19 +32,35 @@ router.post('/register', async (req, res) => {
       await student.save();
     }
 
+    // Fixed payload - include ALL necessary user data inside the user object
     const payload = {
       user: {
         id: user.id,
+        name: user.name,        // ← Added name inside user object
+        email: user.email,      // ← Added email inside user object
         role: user.role,
+        status: user.status
       },
     };
+    
+    console.log('Register - JWT payload:', payload); // Debug log
+    
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
       { expiresIn: 3600 },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ 
+          token,
+          user: {                // Also return user data in response
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status
+          }
+        });
       }
     );
   } catch (err) {
@@ -66,20 +82,36 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
+    
+    // Fixed payload - include ALL necessary user data inside the user object
     const payload = {
       user: {
         id: user.id,
+        name: user.name,        // ← Moved name inside user object
+        email: user.email,      // ← Added email inside user object
         role: user.role,
+        status: user.status
       },
-      name: user.name,
     };
+    
+    console.log('Login - JWT payload:', payload); // Debug log
+    
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
       { expiresIn: 3600 },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ 
+          token,
+          user: {                // Also return user data in response
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status
+          }
+        });
       }
     );
   } catch (err) {

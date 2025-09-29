@@ -17,7 +17,7 @@ import {
   Book,
   FileText
 } from 'lucide-react';
-import { Course, Enrollment } from '@/types';
+import { Course, Enrollment, User } from '@/types';
 import api from '@/services/api';
 
 const StudentDashboard: React.FC = () => {
@@ -26,33 +26,71 @@ const StudentDashboard: React.FC = () => {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && user) {
-      loadDashboardData();
+      loadDashboardData(user);
     }
   }, [user, isAuthLoading]);
 
-  const loadDashboardData = async () => {
-    if (!user) return;
+  const getUserId = (currentUser: User | null): string | null => {
+    if (!currentUser) return null;
+    return currentUser._id || null;
+  };
+
+  const loadDashboardData = async (currentUser: User | null) => {
+    if (!currentUser) return;
+    
+    const userId = getUserId(currentUser);
+    if (!userId) {
+      console.error('No valid user ID found');
+      setError('Invalid user session. Please log in again.');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log('Loading dashboard data for user:', {
+      email: currentUser.email,
+      name: currentUser.name,
+      id: userId,
+      role: currentUser.role
+    });
+
     setIsLoading(true);
+    setError(null);
+    
     try {
       const [enrollmentsRes, coursesRes] = await Promise.all([
-        api.get(`/student/${user._id}/enrollments`),
+        api.get(`/student/${userId}/enrollments`),
         api.get('/courses'),
       ]);
+      
+      console.log('Enrollments response:', enrollmentsRes.data);
+      console.log('Courses response:', coursesRes.data);
+      
       setEnrollments(enrollmentsRes.data);
       const enrolledCourseIds = enrollmentsRes.data.map((e: Enrollment) => e.course_id);
       const enrolled = coursesRes.data.filter((c: Course) =>
         enrolledCourseIds.includes(c._id)
       );
       setEnrolledCourses(enrolled);
+      
       const recommended = coursesRes.data
         .filter((c: Course) => !enrolledCourseIds.includes(c._id))
         .slice(0, 3);
       setRecommendedCourses(recommended);
-    } catch (error) {
-      // Error is handled by the axios interceptor
+    } catch (error: any) {
+      console.error('Error loading dashboard data:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 403) {
+        setError('Access denied. Please ensure you are logged in as a student.');
+      } else if (error.response?.status === 404) {
+        setError('Student profile not found. Please contact support.');
+      } else {
+        setError('Failed to load dashboard data. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,12 +111,12 @@ const StudentDashboard: React.FC = () => {
 
   const getTotalLearningHours = () => {
     return enrolledCourses.reduce((total, course) => {
-      const moduleHours = course.duration
+      const moduleHours = course.duration || 0;
       return total + (moduleHours / 60);
     }, 0);
   };
 
-  if (isLoading || isAuthLoading) {
+  if (isAuthLoading || isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
@@ -93,15 +131,49 @@ const StudentDashboard: React.FC = () => {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <p>User not found. Please try logging in again.</p>
+        <Link to="/login">
+          <Button className="mt-4">Go to Login</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Dashboard</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="space-x-2">
+            <Button onClick={() => loadDashboardData(user)} variant="outline">
+              Try Again
+            </Button>
+            <Link to="/login">
+              <Button variant="default">Go to Login</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">
-          Welcome back, {user?.name}!
+          Welcome back, {user.name}!
         </h1>
         <p className="text-muted-foreground mt-2">
           Continue your learning journey
         </p>
+        {/* Debug info - remove in production */}
+        <div className="text-xs text-gray-500 mt-2">
+          User ID: {getUserId(user)} | Role: {user.role}
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -206,11 +278,11 @@ const StudentDashboard: React.FC = () => {
                           <div className="flex items-center space-x-4 mb-4">
                             <div className="flex items-center space-x-1">
                               <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                              <span className="text-sm">{course.rating}</span>
+                              <span className="text-sm">{course.rating || 'N/A'}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <Users className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{course.tags.join(', ')}</span>
+                              <span className="text-sm">{course.tags?.join(', ') || 'No tags'}</span>
                             </div>
                           </div>
                           <div className="space-y-2">
@@ -219,7 +291,7 @@ const StudentDashboard: React.FC = () => {
                                 Progress: {progress}%
                               </span>
                               <span className="text-sm text-muted-foreground">
-                                {course.duration} hours
+                                {course.duration || 0} hours
                               </span>
                             </div>
                             <Progress value={progress} className="h-2" />
@@ -266,7 +338,7 @@ const StudentDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1">
                       <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                      <span className="text-xs">{course.rating}</span>
+                      <span className="text-xs">{course.rating || 'N/A'}</span>
                     </div>
                     <Link to={`/courses/${course._id}`}>
                       <Button size="sm" variant="outline">View</Button>

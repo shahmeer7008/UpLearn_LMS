@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 
 // CORS configuration
 const corsOptions = {
@@ -33,7 +33,7 @@ app.use('/api/courses', require('./routes/courses'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/instructor', require('./routes/instructor'));
 app.use('/api/wishlist', require('./routes/wishlist'));
-
+app.use('/api/profile', require('./routes/profile'));
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

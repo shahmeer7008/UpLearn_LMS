@@ -49,8 +49,8 @@ const StudentManagement: React.FC = () => {
 
     try {
       const [coursesRes, enrollmentsRes] = await Promise.all([
-        api.get(`/instructor/courses/${user._id}`),
-        api.get(`/instructor/enrollments/${user._id}`)
+        api.get(`/instructor/${user._id}/courses`),
+        api.get(`/instructor/${user._id}/enrollments`)
       ]);
 
       setInstructorCourses(coursesRes.data);

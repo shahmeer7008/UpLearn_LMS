@@ -17,7 +17,7 @@ import {
 import { Course } from '@/types';
 import { showSuccess, showError } from '@/utils/toast';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/services/api'; // Use your centralized API instance
 
 interface WishlistItem {
   _id: string;
@@ -51,31 +51,53 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
   }, [courseId, wishlistItems]);
 
   const loadWishlist = async () => {
-    if (!user) return;
+    if (!user?._id) return;
 
     try {
-      const res = await axios.get(`/api/wishlist/${user._id}`);
+      setIsLoading(true);
+      
+      // Use the centralized API instance which already has auth headers
+      const res = await api.get(`/wishlist/${user._id}`);
       setWishlistItems(res.data);
 
+      // Load course details for each wishlist item
       const courses: Course[] = [];
-      for (const item of res.data) {
-        const courseRes = await axios.get(`/api/courses/${item.course_id}`);
-        if (courseRes.data) {
-          courses.push(courseRes.data);
+      const coursePromises = res.data.map(async (item: WishlistItem) => {
+        try {
+          const courseRes = await api.get(`/courses/${item.course_id}`);
+          return courseRes.data;
+        } catch (error) {
+          console.error(`Failed to load course ${item.course_id}:`, error);
+          return null;
         }
-      }
+      });
+
+      const courseResults = await Promise.allSettled(coursePromises);
+      courseResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          courses.push(result.value);
+        }
+      });
+
       setWishlistCourses(courses);
-    } catch (error) {
-     if (axios.isAxiosError(error) && error.response) {
-       showError(error.response.data.message || 'An error occurred while loading the wishlist.');
-     } else {
-       showError('An unexpected error occurred.');
-     }
+    } catch (error: any) {
+      console.error('Error loading wishlist:', error);
+      if (error.response?.status === 401) {
+        showError('Session expired. Please log in again.');
+      } else if (error.response?.status === 404) {
+        // User might not have a wishlist yet, that's okay
+        setWishlistItems([]);
+        setWishlistCourses([]);
+      } else {
+        showError(error.response?.data?.message || 'Failed to load wishlist');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const toggleWishlist = async () => {
-    if (!user || !courseId) {
+    if (!user?._id || !courseId) {
       showError('Please log in to add courses to your wishlist');
       return;
     }
@@ -84,32 +106,56 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
 
     try {
       if (isInWishlist) {
-        await axios.delete(`/api/wishlist/${user._id}/${courseId}`);
+        // Remove from wishlist
+        await api.delete(`/wishlist/${user._id}/${courseId}`);
         setIsInWishlist(false);
         showSuccess('Removed from wishlist');
       } else {
-        await axios.post('/api/wishlist', { userId: user._id, courseId });
+        // Add to wishlist
+        await api.post('/wishlist', { 
+          userId: user._id, 
+          courseId: courseId 
+        });
         setIsInWishlist(true);
         showSuccess('Added to wishlist');
       }
 
+      // Reload wishlist to get updated data
       loadWishlist();
-    } catch (error) {
-      showError('Failed to update wishlist');
+    } catch (error: any) {
+      console.error('Error toggling wishlist:', error);
+      if (error.response?.status === 401) {
+        showError('Session expired. Please log in again.');
+      } else {
+        showError(error.response?.data?.message || 'Failed to update wishlist');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const removeFromWishlist = async (courseIdToRemove: string) => {
-    if (!user) return;
+    if (!user?._id) return;
 
     try {
-      await axios.delete(`/api/wishlist/${user._id}/${courseIdToRemove}`);
+      await api.delete(`/wishlist/${user._id}/${courseIdToRemove}`);
       showSuccess('Removed from wishlist');
-      loadWishlist();
-    } catch (error) {
-      showError('Failed to remove from wishlist');
+      
+      // Update local state immediately for better UX
+      setWishlistItems(prev => prev.filter(item => item.course_id !== courseIdToRemove));
+      setWishlistCourses(prev => prev.filter(course => course._id !== courseIdToRemove));
+      
+      // If this is the current course, update the button state
+      if (courseIdToRemove === courseId) {
+        setIsInWishlist(false);
+      }
+    } catch (error: any) {
+      console.error('Error removing from wishlist:', error);
+      if (error.response?.status === 401) {
+        showError('Session expired. Please log in again.');
+      } else {
+        showError(error.response?.data?.message || 'Failed to remove from wishlist');
+      }
     }
   };
 
@@ -127,6 +173,21 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
     });
   };
 
+  // If user is not logged in, don't render anything
+  if (!user) {
+    return showButton && courseId ? (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => showError('Please log in to save courses')}
+        className="flex items-center space-x-2 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+      >
+        <Heart className="h-4 w-4" />
+        <span>Save</span>
+      </Button>
+    ) : null;
+  }
+
   // Wishlist button component
   if (showButton && courseId) {
     return (
@@ -142,7 +203,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
         }`}
       >
         <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
-        <span>{isInWishlist ? 'Saved' : 'Save'}</span>
+        <span>{isLoading ? '...' : (isInWishlist ? 'Saved' : 'Save')}</span>
       </Button>
     );
   }
@@ -167,7 +228,12 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
         )}
       </div>
 
-      {wishlistCourses.length === 0 ? (
+      {isLoading && wishlistCourses.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 dark:text-gray-400 mt-4">Loading your wishlist...</p>
+        </div>
+      ) : wishlistCourses.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <Heart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -209,6 +275,7 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
                         size="sm"
                         onClick={() => removeFromWishlist(course._id)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        disabled={isLoading}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -223,24 +290,24 @@ const WishlistSystem: React.FC<WishlistSystemProps> = ({ courseId, showButton = 
                       <span>By {course.instructorName}</span>
                       <div className="flex items-center space-x-1">
                         <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span>{course.ratingAverage}</span>
+                        <span>{course.ratingAverage || '4.5'}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
                       <div className="flex items-center space-x-1">
                         <Users className="h-4 w-4" />
-                        <span>{course.enrollmentCount.toLocaleString()} students</span>
+                        <span>{course.enrollmentCount?.toLocaleString() || '0'} students</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Clock className="h-4 w-4" />
-                        <span>{course.modules.length} modules</span>
+                        <span>{course.modules?.length || 0} modules</span>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {course.pricing === 0 ? 'Free' : `$${course.pricing.toFixed(2)}`}
+                        {course.pricing === 0 ? 'Free' : `$${course.pricing?.toFixed(2) || '0.00'}`}
                       </div>
                       {wishlistItem && (
                         <span className="text-xs text-gray-500">

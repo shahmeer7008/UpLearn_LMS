@@ -14,7 +14,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Course, Enrollment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api'; // Use your configured api instance instead of axios
 import CourseCard from './CourseCard';
 
 interface RecommendationSection {
@@ -29,6 +29,7 @@ const CourseRecommendations: React.FC = () => {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<RecommendationSection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -36,14 +37,35 @@ const CourseRecommendations: React.FC = () => {
     }
   }, [user]);
 
+  const getUserId = () => {
+    return user?._id||null;
+  };
+
   const loadRecommendations = async () => {
     if (!user) return;
 
+    const userId = getUserId();
+    if (!userId) {
+      console.error('No valid user ID found');
+      setError('User session invalid. Please log in again.');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log('Loading recommendations for user:', userId);
+    setIsLoading(true);
+    setError(null);
+
     try {
+      // Fixed API calls with correct route structure
       const [coursesRes, enrollmentsRes] = await Promise.all([
-        axios.get('/api/courses'),
-        axios.get(`/api/student/enrollments/${user._id}`)
+        api.get('/courses'), // Correct route
+        api.get(`/student/${userId}/enrollments`) // Fixed: /student/userid/enrollments
       ]);
+
+      console.log('Courses response:', coursesRes.data);
+      console.log('Enrollments response:', enrollmentsRes.data);
+
       const allCourses = coursesRes.data;
       const userEnrollments = enrollmentsRes.data;
       const enrolledCourseIds = userEnrollments.map((e: Enrollment) => e.course_id);
@@ -60,7 +82,7 @@ const CourseRecommendations: React.FC = () => {
         
         const similarCourses = availableCourses
           .filter(course => userCategories.includes(course.category))
-          .sort((a, b) => b.rating - a.rating)
+          .sort((a, b) => (b.rating || 0) - (a.rating || 0))
           .slice(0, 4);
 
         if (similarCourses.length > 0) {
@@ -74,37 +96,40 @@ const CourseRecommendations: React.FC = () => {
         }
       }
 
-      // 2. Trending/Popular courses
-      const trendingCourses = availableCourses
-        .sort((a, b) => 0)
-        .slice(0, 4);
+      // 2. Trending/Popular courses (random selection for now)
+      const shuffledCourses = [...availableCourses].sort(() => Math.random() - 0.5);
+      const trendingCourses = shuffledCourses.slice(0, 4);
 
-      recommendationSections.push({
-        title: 'Trending Now',
-        description: 'Most popular courses this month',
-        icon: <TrendingUp className="h-5 w-5" />,
-        courses: trendingCourses,
-        reason: 'Popular among learners like you'
-      });
+      if (trendingCourses.length > 0) {
+        recommendationSections.push({
+          title: 'Trending Now',
+          description: 'Most popular courses this month',
+          icon: <TrendingUp className="h-5 w-5" />,
+          courses: trendingCourses,
+          reason: 'Popular among learners like you'
+        });
+      }
 
       // 3. Highly rated courses
       const topRatedCourses = availableCourses
-        .filter(course => course.rating >= 4.5)
-        .sort((a, b) => b.rating - a.rating)
+        .filter(course => (course.rating || 0) >= 4.0) // Handle undefined ratings
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
         .slice(0, 4);
 
-      recommendationSections.push({
-        title: 'Top Rated',
-        description: 'Highest rated courses by students',
-        icon: <Star className="h-5 w-5" />,
-        courses: topRatedCourses,
-        reason: 'Loved by students worldwide'
-      });
+      if (topRatedCourses.length > 0) {
+        recommendationSections.push({
+          title: 'Top Rated',
+          description: 'Highest rated courses by students',
+          icon: <Star className="h-5 w-5" />,
+          courses: topRatedCourses,
+          reason: 'Loved by students worldwide'
+        });
+      }
 
       // 4. Free courses
       const freeCourses = availableCourses
         .filter(course => course.pricing === 0)
-        .sort((a, b) => b.rating - a.rating)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
         .slice(0, 4);
 
       if (freeCourses.length > 0) {
@@ -119,8 +144,8 @@ const CourseRecommendations: React.FC = () => {
 
       // 5. Quick wins (short courses)
       const quickCourses = availableCourses
-        .filter(course => course.duration <= 5)
-        .sort((a, b) => b.rating - a.rating)
+        .filter(course => (course.duration || 0) <= 5)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
         .slice(0, 4);
 
       if (quickCourses.length > 0) {
@@ -134,8 +159,19 @@ const CourseRecommendations: React.FC = () => {
       }
 
       setRecommendations(recommendationSections);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading recommendations:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 401) {
+        setError('Session expired. Please log in again.');
+      } else if (error.response?.status === 403) {
+        setError('Access denied. Please ensure you are logged in as a student.');
+      } else if (error.response?.status === 404) {
+        setError('Student profile not found.');
+      } else {
+        setError('Failed to load recommendations. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +194,25 @@ const CourseRecommendations: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <BookOpen className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-red-800 mb-2">
+              Error Loading Recommendations
+            </h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={loadRecommendations} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (recommendations.length === 0) {
     return (
       <Card>
@@ -166,9 +221,12 @@ const CourseRecommendations: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             No recommendations available
           </h3>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             Enroll in some courses to get personalized recommendations
           </p>
+          <Button onClick={loadRecommendations}>
+            Refresh Recommendations
+          </Button>
         </CardContent>
       </Card>
     );
@@ -176,6 +234,11 @@ const CourseRecommendations: React.FC = () => {
 
   return (
     <div className="space-y-12">
+      {/* Debug info - remove in production */}
+      <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+        Debug: User ID: {getUserId()}, Sections: {recommendations.length}
+      </div>
+
       {recommendations.map((section, index) => (
         <div key={index}>
           <div className="flex items-center justify-between mb-6">

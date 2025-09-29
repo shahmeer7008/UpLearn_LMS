@@ -1,316 +1,312 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  BookOpen,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Plus,
-  Eye,
-  Edit,
-  BarChart3,
-  LayoutDashboard,
-  Book,
-  FileText
-} from 'lucide-react';
-import { Course, Enrollment, Payment } from '@/types';
-import api from '@/services/api';
+import axios from 'axios';
+
+interface Course {
+  _id: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+}
+
+interface Enrollment {
+  _id: string;
+  user_id: { name: string; email: string };
+  course_id: { title: string };
+  enrollmentDate: string;
+  progress: number;
+  completionStatus: string;
+}
+
+interface Payment {
+  _id: string;
+  user_id: { name: string; email: string };
+  course_id: { title: string; price: number };
+  amount: number;
+  paymentDate: string;
+}
+
+interface DashboardData {
+  courses: Course[];
+  enrollments: Enrollment[];
+  payments: Payment[];
+}
 
 const InstructorDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [instructorCourses, setInstructorCourses] = useState<Course[]>([]);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<DashboardData>({
+    courses: [],
+    enrollments: [],
+    payments: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiStatus, setApiStatus] = useState<string>('Checking...');
 
+  // Get user data from localStorage or context
+  const getUserId = () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      
+      // Decode JWT token to get user ID
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user?.id || payload.id;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      return null;
+    }
+  };
+
+  // Set up axios defaults
   useEffect(() => {
-    loadInstructorData();
-  }, [user]);
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['x-auth-token'] = token;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+  }, []);
 
   const loadInstructorData = async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const [coursesRes, enrollmentsRes, paymentsRes] = await Promise.all([
-        api.get(`/courses?instructor_id=${user._id}`),
-        api.get(`/enrollments?instructor_id=${user._id}`),
-        api.get(`/payments?instructor_id=${user._id}`),
-      ]);
-      setInstructorCourses(coursesRes.data);
-      setEnrollments(enrollmentsRes.data);
-      setPayments(paymentsRes.data);
-    } catch (error) {
-      // Error is handled by the axios interceptor
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getTotalRevenue = () => {
-    return Array.isArray(payments) ? payments.reduce((total, payment) => total + payment.amount, 0) : 0;
-  };
-
-  const getTotalStudents = () => {
-    return Array.isArray(enrollments) ? enrollments.length : 0;
-  };
-
-  const getActiveStudents = () => {
-    return Array.isArray(enrollments) ? enrollments.filter(e => e.completionStatus === 'in-progress').length : 0;
-  };
-
-  const getCompletionRate = () => {
-    if (!Array.isArray(enrollments) || enrollments.length === 0) return 0;
-    const completed = enrollments.filter(e => e.completionStatus === 'completed').length;
-    return Math.round((completed / enrollments.length) * 100);
-  };
-
-  const getCourseStats = (courseId: string) => {
-    const courseEnrollments = Array.isArray(enrollments) ? enrollments.filter(e => e.course_id === courseId) : [];
-    const coursePayments = Array.isArray(payments) ? payments.filter(p => p.course_id === courseId) : [];
+    const userId = getUserId();
     
-    return {
-      students: courseEnrollments.length,
-      revenue: coursePayments.reduce((sum, p) => sum + p.amount, 0),
-      avgProgress: courseEnrollments.length > 0
-        ? Math.round(courseEnrollments.reduce((sum, e) => sum + e.progress, 0) / courseEnrollments.length)
-        : 0
-    };
-  };
+    if (!userId) {
+      setError('User not authenticated');
+      setLoading(false);
+      return;
+    }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'archived': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('Loading data for instructor:', userId);
+
+      // Load courses
+      try {
+        const coursesResponse = await axios.get(`http://localhost:5000/api/instructor/${userId}/courses`);
+        console.log('Courses loaded:', coursesResponse.data);
+        setData(prev => ({ ...prev, courses: coursesResponse.data }));
+      } catch (err) {
+        console.error('Failed to load courses:', err);
+        // Don't throw error, just log it
+      }
+
+      // Load enrollments
+      try {
+        const enrollmentsResponse = await axios.get(`http://localhost:5000/api/instructor/${userId}/enrollments`);
+        console.log('Enrollments loaded:', enrollmentsResponse.data);
+        setData(prev => ({ ...prev, enrollments: enrollmentsResponse.data }));
+      } catch (err) {
+        console.error('Failed to load enrollments:', err);
+        // Don't throw error, just log it
+      }
+
+      // Load payments
+      try {
+        const paymentsResponse = await axios.get(`http://localhost:5000/api/instructor/${userId}/payments`);
+        console.log('Payments loaded:', paymentsResponse.data);
+        setData(prev => ({ ...prev, payments: paymentsResponse.data }));
+      } catch (err) {
+        console.error('Failed to load payments:', err);
+        // Don't throw error, just log it
+      }
+
+    } catch (error) {
+      console.error('Error loading instructor data:', error);
+      setError('Failed to load instructor data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (isLoading) {
+  const checkAPIConnection = async () => {
+    const testEndpoints = [
+      '/profile',
+      '/api/instructor/test'
+    ];
+
+    for (const endpoint of testEndpoints) {
+      try {
+        const response = await axios.get(`http://localhost:5000${endpoint}`);
+        console.log(`Endpoint ${endpoint} is available:`, response.data);
+        setApiStatus(prev => `${prev}\n✓ ${endpoint} - OK`);
+      } catch (error) {
+        console.error(`Endpoint ${endpoint} not available:`, error.response?.status);
+        setApiStatus(prev => `${prev}\n✗ ${endpoint} - ${error.response?.status || 'ERROR'}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    
+    
+    // Then load instructor data
+    loadInstructorData();
+  }, []);
+
+  if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading instructor dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <h2 className="text-red-800 text-lg font-semibold mb-2">Error</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              loadInstructorData();
+            }}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">
-          Welcome back, {user?.name}!
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your courses and track your teaching success
-        </p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Courses</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Array.isArray(instructorCourses) ? instructorCourses.length : 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {Array.isArray(instructorCourses) ? instructorCourses.filter(c => c.status === 'approved').length : 0} published
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{getTotalStudents()}</div>
-            <p className="text-xs text-muted-foreground">
-              {getActiveStudents()} active learners
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${getTotalRevenue().toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              {payments.length} transactions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{getCompletionRate()}%</div>
-            <p className="text-xs text-muted-foreground">
-              Student success rate
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">My Courses</h2>
-            <Link to="/instructor/courses/create">
-              <Button className="flex items-center space-x-2">
-                <Plus className="h-4 w-4" />
-                <span>Create Course</span>
-              </Button>
-            </Link>
-          </div>
-
-          {!Array.isArray(instructorCourses) || instructorCourses.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">
-                  No courses created yet
-                </h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  Start sharing your knowledge by creating your first course
-                </p>
-                <Link to="/instructor/courses/create">
-                  <Button>Create Your First Course</Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {Array.isArray(instructorCourses) && instructorCourses.slice(0, 5).map((course) => {
-                const stats = getCourseStats(course._id);
-                return (
-                  <Card key={course._id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold text-lg">{course.title}</h3>
-                            <Badge className={`text-xs ${getStatusColor(course.status)}`}>
-                              {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
-                            </Badge>
-                          </div>
-                          <p className="text-muted-foreground mb-4 line-clamp-2">
-                            {course.description}
-                          </p>
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div className="flex items-center space-x-1">
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              <span>{stats.students} students</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <DollarSign className="h-4 w-4 text-muted-foreground" />
-                              <span>${stats.revenue.toFixed(2)}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                              <span>{stats.avgProgress}% avg progress</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="ml-6 flex space-x-2">
-                          <Link to={`/courses/${course._id}`}>
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Link to={`/instructor/courses/${course._id}/edit`}>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              {Array.isArray(instructorCourses) && instructorCourses.length > 5 && (
-                <div className="text-center">
-                  <Link to="/instructor/courses">
-                    <Button variant="outline">View All Courses</Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Instructor Dashboard</h1>
+        
+        {/* API Status Debug Info */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <h3 className="font-semibold mb-2">API Status</h3>
+          <pre className="text-sm text-gray-600 whitespace-pre-wrap">{apiStatus}</pre>
         </div>
 
-        <div>
-          <h2 className="text-xl font-bold mb-6">Quick Actions</h2>
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Course Performance</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Link to="/instructor/analytics">
-                  <Button variant="outline" className="w-full justify-start">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    View Analytics
-                  </Button>
-                </Link>
-                <Link to="/instructor/students">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Users className="h-4 w-4 mr-2" />
-                    Manage Students
-                  </Button>
-                </Link>
-                <Link to="/instructor/earnings">
-                  <Button variant="outline" className="w-full justify-start">
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    View Earnings
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Courses</h3>
+            <p className="text-3xl font-bold text-blue-600">{data.courses.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Enrollments</h3>
+            <p className="text-3xl font-bold text-green-600">{data.enrollments.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Payments</h3>
+            <p className="text-3xl font-bold text-purple-600">{data.payments.length}</p>
+          </div>
+        </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  {Array.isArray(enrollments) && enrollments.slice(0, 3).map((enrollment) => {
-                    const course = Array.isArray(instructorCourses) ? instructorCourses.find(c => c._id === enrollment.course_id) : null;
-                    return (
-                      <div key={enrollment._id} className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-muted-foreground">
-                          New enrollment in {course?.title || 'Unknown Course'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {(!Array.isArray(enrollments) || enrollments.length === 0) && (
-                    <p className="text-muted-foreground text-center py-4">No recent activity</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        {/* Courses Section */}
+        <div className="bg-white rounded-lg shadow mb-8">
+          <div className="p-6 border-b">
+            <h2 className="text-xl font-semibold text-gray-800">My Courses</h2>
+          </div>
+          <div className="p-6">
+            {data.courses.length === 0 ? (
+              <p className="text-gray-500">No courses found. Create your first course to get started!</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {data.courses.map((course) => (
+                  <div key={course._id} className="border rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 mb-2">{course.title}</h3>
+                    <p className="text-gray-600 text-sm mb-2">{course.description}</p>
+                    <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                      course.status === 'published' ? 'bg-green-100 text-green-800' :
+                      course.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {course.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Enrollments */}
+        <div className="bg-white rounded-lg shadow mb-8">
+          <div className="p-6 border-b">
+            <h2 className="text-xl font-semibold text-gray-800">Recent Enrollments</h2>
+          </div>
+          <div className="p-6">
+            {data.enrollments.length === 0 ? (
+              <p className="text-gray-500">No enrollments yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-4 py-2 text-left">Student</th>
+                      <th className="px-4 py-2 text-left">Course</th>
+                      <th className="px-4 py-2 text-left">Progress</th>
+                      <th className="px-4 py-2 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.enrollments.slice(0, 10).map((enrollment) => (
+                      <tr key={enrollment._id} className="border-t">
+                        <td className="px-4 py-2">{enrollment.user_id.name}</td>
+                        <td className="px-4 py-2">{enrollment.course_id.title}</td>
+                        <td className="px-4 py-2">{enrollment.progress}%</td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            enrollment.completionStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                            enrollment.completionStatus === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {enrollment.completionStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Payments */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b">
+            <h2 className="text-xl font-semibold text-gray-800">Recent Payments</h2>
+          </div>
+          <div className="p-6">
+            {data.payments.length === 0 ? (
+              <p className="text-gray-500">No payments received yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-4 py-2 text-left">Student</th>
+                      <th className="px-4 py-2 text-left">Course</th>
+                      <th className="px-4 py-2 text-left">Amount</th>
+                      <th className="px-4 py-2 text-left">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.payments.slice(0, 10).map((payment) => (
+                      <tr key={payment._id} className="border-t">
+                        <td className="px-4 py-2">{payment.user_id.name}</td>
+                        <td className="px-4 py-2">{payment.course_id.title}</td>
+                        <td className="px-4 py-2">${payment.amount}</td>
+                        <td className="px-4 py-2">
+                          {new Date(payment.paymentDate).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

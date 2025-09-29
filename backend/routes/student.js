@@ -7,14 +7,14 @@ const Student = require('../models/Student');
 const { authenticate, authorize } = require('../middleware/auth');
 
 // Protect all routes for students
-router.use(authenticate, authorize('student'));
+router.use(authenticate);
 
 // @route   GET /api/student/:id/courses
 // @desc    Get all courses a student is enrolled in
 // @access  Private (Student only)
-router.get('/:id/courses', async (req, res) => {
+router.get('/:id/courses', authorize('student'), async (req, res) => {
     try {
-        if (req.user._id !== req.params.id) {
+        if (req.user.user.id !== req.params.id) {
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const student = await Student.findOne({ user_id: req.params.id }).populate('enrolledCourses');
@@ -29,9 +29,9 @@ router.get('/:id/courses', async (req, res) => {
 });
 
 // Get user's enrollment for a course
-router.get('/:id/enrollment/:courseId', async (req, res) => {
+router.get('/:id/enrollment/:courseId', authorize('student'), async (req, res) => {
   try {
-    if (req.user._id !== req.params.id) {
+    if (req.user.user.id !== req.params.id) {
         return res.status(403).json({ msg: 'User not authorized' });
     }
     const enrollment = await Enrollment.findOne({ user_id: req.params.id, course_id: req.params.courseId });
@@ -43,9 +43,9 @@ router.get('/:id/enrollment/:courseId', async (req, res) => {
 });
 
 // Get user's payment for a course
-router.get('/:id/payment/:courseId', async (req, res) => {
+router.get('/:id/payment/:courseId', authorize('student'), async (req, res) => {
   try {
-    if (req.user._id !== req.params.id) {
+    if (req.user.user.id !== req.params.id) {
         return res.status(403).json({ msg: 'User not authorized' });
     }
     const payment = await Payment.findOne({ user_id: req.params.id, course_id: req.params.courseId });
@@ -57,7 +57,7 @@ router.get('/:id/payment/:courseId', async (req, res) => {
 });
 
 // Update enrollment progress
-router.put('/:id/enrollment/:enrollmentId', async (req, res) => {
+router.put('/:id/enrollment/:enrollmentId', authorize('student'), async (req, res) => {
   try {
     const enrollment = await Enrollment.findByIdAndUpdate(req.params.enrollmentId, req.body, { new: true });
     res.json(enrollment);
@@ -68,7 +68,7 @@ router.put('/:id/enrollment/:enrollmentId', async (req, res) => {
 });
 
 // Create a certificate
-router.post('/:id/certificates', async (req, res) => {
+router.post('/:id/certificates', authorize('student'), async (req, res) => {
   try {
     const certificate = new Certificate(req.body);
     await certificate.save();
@@ -82,12 +82,9 @@ router.post('/:id/certificates', async (req, res) => {
 // @route   GET /api/student/:id/enrollments
 // @desc    Get all enrollments for a specific student
 // @access  Private (Student only)
-router.get('/:id/enrollments', async (req, res) => {
+router.get('/:id/enrollments', authorize('student'), async (req, res) => {
     try {
-        if (req.user._id !== req.params.id) {
-            console.log('ID mismatch:');
-            console.log('  - User ID from token:', req.user._id);
-            console.log('  - ID from URL params:', req.params.id);
+        if (req.user.user.id !== req.params.id) {
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const enrollments = await Enrollment.find({ user_id: req.params.id }).populate('course_id', ['title', 'category']);
@@ -101,9 +98,9 @@ router.get('/:id/enrollments', async (req, res) => {
 // @route   GET /api/student/:id/certificates
 // @desc    Get all certificates for a specific student
 // @access  Private (Student only)
-router.get('/:id/certificates', async (req, res) => {
+router.get('/:id/certificates', authorize('student'), async (req, res) => {
     try {
-        if (req.user._id !== req.params.id) {
+        if (req.user.user.id !== req.params.id) {
             return res.status(403).json({ msg: 'User not authorized' });
         }
         const certificates = await Certificate.find({ user_id: req.params.id }).populate('course_id', ['title']);

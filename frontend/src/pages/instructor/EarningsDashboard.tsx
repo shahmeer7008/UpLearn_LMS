@@ -62,7 +62,7 @@ const EarningsDashboard: React.FC = () => {
     try {
       const [coursesRes, paymentsRes] = await Promise.all([
         api.get(`/instructor/${user._id}/courses`),
-        api.get(`/instructor/payments/${user._id}`)
+        api.get(`/instructor/${user._id}/payments`)
       ]);
 
       const instructorCourses = coursesRes.data;

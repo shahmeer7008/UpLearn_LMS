@@ -47,7 +47,7 @@ const MyCourses: React.FC = () => {
       ]);
 
       setEnrollments(enrollmentsRes.data);
-      
+      console.log('Enrollments:', enrollmentsRes.data);
       const enrolledCourseIds = enrollmentsRes.data.map((e: Enrollment) => e.course_id);
       const enrolled = coursesRes.data.filter((course: Course) => enrolledCourseIds.includes(course._id));
       setEnrolledCourses(enrolled);
@@ -67,7 +67,7 @@ const MyCourses: React.FC = () => {
       filtered = filtered.filter(course =>
         course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructorName.toLowerCase().includes(searchTerm.toLowerCase())
+        (course.instructorName && course.instructorName.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 

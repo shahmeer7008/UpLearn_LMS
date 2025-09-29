@@ -4,229 +4,211 @@ const { authenticate, authorize } = require('../middleware/auth');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const Payment = require('../models/Payment');
-const Instructor = require('../models/Instructor');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 
-// @route   GET /api/instructor/:id/analytics
-// @desc    Get analytics for a specific instructor
-// @access  Private (Instructor only)
-router.get('/:id/analytics', authenticate, authorize('instructor'), async (req, res) => {
-  try {
-    if (req.user.id !== req.params.id) {
-      return res.status(403).json({ msg: 'User not authorized' });
-    }
+// Enhanced logging middleware
+router.use((req, res, next) => {
+  console.log('=== INSTRUCTOR ROUTE DEBUG ===');
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+  console.log('Headers:', {
+    'x-auth-token': req.headers['x-auth-token'] ? 'Present' : 'Missing',
+    'authorization': req.headers.authorization ? 'Present' : 'Missing',
+    'content-type': req.headers['content-type']
+  });
+  console.log('Params:', req.params);
+  console.log('Query:', req.query);
+  console.log('User from middleware:', req.user ? {
+    id: req.user.id,
+    role: req.user.role
+  } : 'No user attached');
+  console.log('================================');
+  next();
+});
 
-    const instructor = await Instructor.findOne({ user_id: req.params.id }).populate('courses');
-    if (!instructor) {
-      return res.status(404).json({ msg: 'Instructor not found' });
-    }
+// Test route (no authentication required for basic test)
+router.get('/test', (req, res) => {
+  console.log('Test route hit successfully');
+  res.json({ 
+    msg: 'Instructor routes are working!', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    availableRoutes: [
+      'GET /api/instructor/test',
+      'GET /api/instructor/:id/courses',
+      'GET /api/instructor/:id/enrollments', 
+      'GET /api/instructor/:id/payments',
+      'GET /api/instructor/:id/analytics',
+      'GET /api/instructor/:id/dashboard'
+    ]
+  });
+});
 
-    const courseIds = instructor.courses.map(course => course._id);
-    const enrollments = await Enrollment.find({ course_id: { $in: courseIds } });
-    const payments = await Payment.find({ course_id: { $in: courseIds } });
+// Authentication test route
+router.get('/auth-test', authenticate, (req, res) => {
+  res.json({
+    msg: 'Authentication is working',
+    user: {
+      id: req.user.id,
+      role: req.user.role
+    },
+    timestamp: new Date().toISOString()
+  });
+});
 
-    const analytics = instructor.courses.map(course => {
-      const courseEnrollments = enrollments.filter(e => e.course_id.toString() === course._id.toString());
-      const coursePayments = payments.filter(p => p.course_id.toString() === course._id.toString());
-      const completedCount = courseEnrollments.filter(e => e.completionStatus === 'completed').length;
-      const completionRate = courseEnrollments.length > 0 ? (completedCount / courseEnrollments.length) * 100 : 0;
-      const avgProgress = courseEnrollments.length > 0
-        ? courseEnrollments.reduce((sum, e) => sum + e.progress, 0) / courseEnrollments.length
-        : 0;
-      const activeStudents = courseEnrollments.filter(e => e.completionStatus === 'in-progress').length;
+// Middleware to validate instructor ID and permissions
+const validateInstructorAccess = (req, res, next) => {
+  console.log('=== VALIDATING INSTRUCTOR ACCESS ===');
+  console.log('Requested instructor ID:', req.params.id);
+  console.log('Current user ID:', req.user?.id);
+  console.log('Current user role:', req.user?.role);
+  
+  if (!req.user) {
+    console.log('❌ No user found in request');
+    return res.status(401).json({ msg: 'No user found in request' });
+  }
 
-      return {
-        course,
-        enrollments: courseEnrollments,
-        revenue: coursePayments.reduce((sum, p) => sum + p.amount, 0),
-        completionRate: Math.round(completionRate),
-        avgProgress: Math.round(avgProgress),
-        activeStudents,
-      };
+  const requestedInstructorId = req.params.id;
+  const currentUserId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  // Validate MongoDB ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(requestedInstructorId)) {
+    console.log('❌ Invalid instructor ID format');
+    return res.status(400).json({ msg: 'Invalid instructor ID format' });
+  }
+
+  // Allow if user is accessing their own data or is admin
+  if (currentUserId === requestedInstructorId || currentUserRole === 'admin') {
+    console.log('✅ Access granted');
+    next();
+  } else {
+    console.log('❌ Access denied');
+    return res.status(403).json({ 
+      msg: 'Access denied. You can only access your own instructor data.',
+      requestedId: requestedInstructorId,
+      currentUserId: currentUserId,
+      userRole: currentUserRole
     });
+  }
+};
 
-    res.json(analytics);
+// @route   GET /api/instructor/:id/courses
+// @desc    Get all courses for an instructor
+// @access  Private (Instructor only)
+router.get('/:id/courses', authenticate, authorize('instructor'), validateInstructorAccess, async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+    console.log('🔍 Getting courses for instructor:', instructorId);
+    
+    // Log database query
+    console.log('Querying courses with instructor_id:', instructorId);
+    
+    const courses = await Course.find({ 
+      instructor_id: instructorId 
+    }).sort({ createdAt: -1 });
+    
+    console.log('✅ Found courses:', courses.length);
+    console.log('Course details:', courses.map(c => ({ id: c._id, title: c.title, status: c.status })));
+    
+    res.json(courses);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    console.error('❌ Error in /courses route:', err);
+    res.status(500).json({ 
+      msg: 'Server error', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 
-// Protect all routes for instructors
-router.use(authenticate, authorize('instructor'));
-
-// @route   POST /api/instructor/courses
-// @desc    Create a new course
-// @access  Private (Instructor only)
-router.post('/:id/courses', async (req, res) => {
-    try {
-        if (req.user.id !== req.params.id) {
-            return res.status(403).json({ msg: 'User not authorized' });
-        }
-
-        const { title, description, category, price } = req.body;
-        const instructor_id = req.user.id;
-
-        const newCourse = new Course({
-            title,
-            description,
-            category,
-            price,
-            instructor_id,
-        });
-
-        const course = await newCourse.save();
-
-        // Add course to instructor's list of courses
-        await Instructor.findOneAndUpdate(
-            { user_id: req.user.id },
-            { $push: { courses: course._id } }
-        );
-
-        res.status(201).json(course);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// @route   GET /api/instructor/courses
-// @desc    Get all courses created by the authenticated instructor
-// @access  Private (Instructor only)
-router.get('/:id/courses', async (req, res) => {
-    try {
-        if (req.user.id !== req.params.id) {
-            return res.status(403).json({ msg: 'User not authorized' });
-        }
-        const instructor = await Instructor.findOne({ user_id: req.params.id }).populate('courses');
-        if (!instructor) {
-            return res.status(404).json({ msg: 'Instructor not found' });
-        }
-        res.json(instructor.courses);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// @route   PUT /api/instructor/courses/:id
-// @desc    Update a course
-// @access  Private (Instructor only)
-router.put('/courses/:id', async (req, res) => {
-    try {
-        const { title, description, category, price } = req.body;
-        let course = await Course.findById(req.params.id);
-
-        if (!course) {
-            return res.status(404).json({ msg: 'Course not found' });
-        }
-
-        // Ensure the instructor owns the course
-        if (course.instructor_id.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'User not authorized' });
-        }
-
-        course = await Course.findByIdAndUpdate(
-            req.params.id,
-            { $set: { title, description, category, price } },
-            { new: true }
-        );
-
-        res.json(course);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// @route   DELETE /api/instructor/courses/:id
-// @desc    Delete a course
-// @access  Private (Instructor only)
-router.delete('/courses/:id', async (req, res) => {
-    try {
-        let course = await Course.findById(req.params.id);
-
-        if (!course) {
-            return res.status(404).json({ msg: 'Course not found' });
-        }
-
-        // Ensure the instructor owns the course
-        if (course.instructor_id.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'User not authorized' });
-        }
-
-        await Course.findByIdAndRemove(req.params.id);
-
-        res.json({ msg: 'Course removed' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// @route   GET /api/instructor/courses/:id/students
-// @desc    Get a list of students enrolled in a specific course
-// @access  Private (Instructor only)
-router.get('/courses/:id/students', async (req, res) => {
-    try {
-        const course = await Course.findById(req.params.id);
-
-        if (!course) {
-            return res.status(404).json({ msg: 'Course not found' });
-        }
-
-        // Ensure the instructor owns the course
-        if (course.instructor_id.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'User not authorized' });
-        }
-
-        const enrollments = await Enrollment.find({ course_id: req.params.id }).populate('student_id', ['name', 'email']);
-        res.json(enrollments);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
 // @route   GET /api/instructor/:id/enrollments
-// @desc    Get all enrollments for a specific instructor
+// @desc    Get all enrollments for instructor's courses
 // @access  Private (Instructor only)
-router.get('/:id/enrollments', async (req, res) => {
-    try {
-        if (req.user.id !== req.params.id) {
-            return res.status(403).json({ msg: 'User not authorized' });
-        }
-        const instructor = await Instructor.findOne({ user_id: req.params.id }).populate('courses');
-        if (!instructor) {
-            return res.status(404).json({ msg: 'Instructor not found' });
-        }
-        const courseIds = instructor.courses.map(course => course._id);
-        const enrollments = await Enrollment.find({ course_id: { $in: courseIds } }).populate('user_id', ['name', 'email']);
-        res.json(enrollments);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+router.get('/:id/enrollments', authenticate, authorize('instructor'), validateInstructorAccess, async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+    console.log('🔍 Getting enrollments for instructor:', instructorId);
+
+    // First get all courses by this instructor
+    const courses = await Course.find({ instructor_id: instructorId });
+    console.log('📚 Found courses for enrollments:', courses.length);
+    
+    if (courses.length === 0) {
+      console.log('ℹ️ No courses found, returning empty enrollments array');
+      return res.json([]);
     }
+
+    const courseIds = courses.map(course => course._id);
+    console.log('🆔 Course IDs for enrollment lookup:', courseIds);
+
+    // Find enrollments for these courses
+    const enrollments = await Enrollment.find({ 
+      course_id: { $in: courseIds } 
+    })
+    .populate('user_id', 'name email')
+    .populate('course_id', 'title')
+    .sort({ enrollmentDate: -1 });
+
+    console.log('✅ Found enrollments:', enrollments.length);
+    res.json(enrollments);
+  } catch (err) {
+    console.error('❌ Error in /enrollments route:', err);
+    res.status(500).json({ 
+      msg: 'Server error', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
 });
 
 // @route   GET /api/instructor/:id/payments
-// @desc    Get all payments for a specific instructor
+// @desc    Get all payments for instructor's courses
 // @access  Private (Instructor only)
-router.get('/:id/payments', async (req, res) => {
-    try {
-        if (req.user.id !== req.params.id) {
-            return res.status(403).json({ msg: 'User not authorized' });
-        }
-        const instructor = await Instructor.findOne({ user_id: req.params.id }).populate('courses');
-        if (!instructor) {
-            return res.status(404).json({ msg: 'Instructor not found' });
-        }
-        const courseIds = instructor.courses.map(course => course._id);
-        const payments = await Payment.find({ course_id: { $in: courseIds } }).populate('user_id', ['name', 'email']);
-        res.json(payments);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+router.get('/:id/payments', authenticate, authorize('instructor'), validateInstructorAccess, async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+    console.log('🔍 Getting payments for instructor:', instructorId);
+
+    // First get all courses by this instructor
+    const courses = await Course.find({ instructor_id: instructorId });
+    console.log('📚 Found courses for payments:', courses.length);
+    
+    if (courses.length === 0) {
+      console.log('ℹ️ No courses found, returning empty payments array');
+      return res.json([]);
     }
+
+    const courseIds = courses.map(course => course._id);
+    console.log('🆔 Course IDs for payments lookup:', courseIds);
+
+    // Find payments for these courses
+    const payments = await Payment.find({ 
+      course_id: { $in: courseIds } 
+    })
+    .populate('user_id', 'name email')
+    .populate('course_id', 'title price')
+    .sort({ paymentDate: -1 });
+
+    console.log('✅ Found payments:', payments.length);
+    res.json(payments);
+  } catch (err) {
+    console.error('❌ Error in /payments route:', err);
+    res.status(500).json({ 
+      msg: 'Server error', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
+});
+
+// Error handling middleware for this router
+router.use((err, req, res, next) => {
+  console.error('❌ Instructor Router Error:', err);
+  res.status(500).json({
+    msg: 'Internal server error in instructor routes',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
 });
 
 module.exports = router;
