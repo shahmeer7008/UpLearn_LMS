@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { User } from '@/types';
 import { showSuccess, showError } from '@/utils/toast';
-import axios from 'axios';
+import api from '@/services/api';
 
 const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -60,14 +60,10 @@ const UserManagement: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      const response = await axios.get('/api/admin/users');
+      const response = await api.get('/admin/users');
       setUsers(response.data);
-    } catch (error) {
-     if (axios.isAxiosError(error) && error.response) {
-       showError(error.response.data.message || 'An error occurred while loading users.');
-     } else {
-       showError('An unexpected error occurred.');
-     }
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'An error occurred while loading users.');
     } finally {
       setIsLoading(false);
     }
@@ -79,57 +75,58 @@ const UserManagement: React.FC = () => {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Role filter
     if (roleFilter !== 'all') {
-      filtered = filtered.filter(user => user.role === roleFilter);
+      filtered = filtered.filter(user => (user.role || 'student') === roleFilter);
     }
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.status === statusFilter);
+      filtered = filtered.filter(user => (user.status || 'active') === statusFilter);
     }
 
     // Sort by creation date (newest first)
-    filtered.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+    filtered.sort((a, b) => {
+      const dateA = a.createdDate ? new Date(a.createdDate).getTime() : 0;
+      const dateB = b.createdDate ? new Date(b.createdDate).getTime() : 0;
+      return dateB - dateA;
+    });
 
     setFilteredUsers(filtered);
   };
 
   const handleUserAction = async (userId: string, action: 'activate' | 'block' | 'delete' | 'promote' | 'demote') => {
     try {
-      let response;
       switch (action) {
         case 'activate':
         case 'block':
-          response = await axios.put(`/api/admin/users/${userId}/status`, { status: action === 'activate' ? 'active' : 'blocked' });
+          await api.put(`/admin/users/${userId}/status`, { status: action === 'activate' ? 'active' : 'blocked' });
           break;
         case 'promote':
         case 'demote':
-          response = await axios.put(`/api/admin/users/${userId}/role`, { action });
+          await api.put(`/admin/users/${userId}/role`, { action });
           break;
         case 'delete':
-          response = await axios.delete(`/api/admin/users/${userId}`);
+          await api.delete(`/admin/users/${userId}`);
           break;
         default:
           return;
       }
 
-      if (response.status === 200) {
-        loadUsers();
-        const actionMessages = {
-          activate: 'User activated successfully',
-          block: 'User blocked successfully',
-          delete: 'User deleted successfully',
-          promote: 'User promoted successfully',
-          demote: 'User demoted successfully'
-        };
-        showSuccess(actionMessages[action]);
-      }
+      loadUsers();
+      const actionMessages = {
+        activate: 'User activated successfully',
+        block: 'User blocked successfully',
+        delete: 'User deleted successfully',
+        promote: 'User promoted successfully',
+        demote: 'User demoted successfully'
+      };
+      showSuccess(actionMessages[action]);
     } catch (error) {
       showError(`Failed to ${action} user`);
     }
@@ -152,20 +149,25 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const getUserStats = () => {
     return {
       total: users.length,
-      active: users.filter(u => u.status === 'active').length,
+      active: users.filter(u => (u.status || 'active') === 'active').length,
       blocked: users.filter(u => u.status === 'blocked').length,
-      students: users.filter(u => u.role === 'student').length,
+      students: users.filter(u => (u.role || 'student') === 'student').length,
       instructors: users.filter(u => u.role === 'instructor').length,
       admins: users.filter(u => u.role === 'admin').length
     };
@@ -339,30 +341,32 @@ const UserManagement: React.FC = () => {
                 <div key={user._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
                   <div className="flex items-center space-x-4">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.profileImage} alt={user.name} />
+                      <AvatarImage src={user.profileImage} alt={user.name || 'User'} />
                       <AvatarFallback>
-                        {user.name.charAt(0).toUpperCase()}
+                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h3 className="font-medium">{user.name}</h3>
-                        <Badge className={`text-xs ${getRoleColor(user.role)}`}>
-                          {user.role}
+                        <h3 className="font-medium">{user.name || user.email || 'Unknown User'}</h3>
+                        <Badge className={`text-xs ${getRoleColor(user.role || 'student')}`}>
+                          {user.role || 'student'}
                         </Badge>
-                        <Badge className={`text-xs ${getStatusColor(user.status)}`}>
-                          {user.status}
+                        <Badge className={`text-xs ${getStatusColor(user.status || 'active')}`}>
+                          {user.status || 'active'}
                         </Badge>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
                         <div className="flex items-center space-x-1">
                           <Mail className="h-3 w-3" />
-                          <span>{user.email}</span>
+                          <span>{user.email || 'No email'}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>Joined {formatDate(user.createdDate)}</span>
-                        </div>
+                        {user.createdDate && (
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>Joined {formatDate(user.createdDate)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -51,13 +51,13 @@ router.post('/:id/enroll', authenticate, async (req, res) => {
         }
 
         // Handle payment if the course is not free
-        if (course.price > 0) {
+        if (course.pricing > 0) {
             // In a real application, you would integrate with a payment gateway like Stripe
             // For this example, we'll simulate a successful payment
             const newPayment = new Payment({
                 user_id: req.user.id,
                 course_id: req.params.id,
-                amount: course.price,
+                amount: course.pricing,
                 status: 'completed',
             });
             await newPayment.save();
@@ -75,5 +75,7 @@ router.post('/:id/enroll', authenticate, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+
 
 module.exports = router;

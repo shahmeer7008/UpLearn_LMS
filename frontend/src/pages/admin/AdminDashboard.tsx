@@ -48,7 +48,7 @@ const AdminDashboard: React.FC = () => {
       setUsers(usersRes.data);
       setPayments(paymentsRes.data);
     } catch (error) {
-      // Error is handled by the axios interceptor
+      console.error('Error loading admin data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +60,7 @@ const AdminDashboard: React.FC = () => {
       showSuccess(`Course ${status} successfully`);
       loadAdminData();
     } catch (error) {
-      // Error is handled by the axios interceptor
+      console.error('Error handling course approval:', error);
     }
   };
 

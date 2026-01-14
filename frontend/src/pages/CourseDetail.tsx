@@ -49,12 +49,17 @@ const CourseDetail: React.FC = () => {
       setCourse(courseRes.data);
 
       if (user) {
-        const [enrollmentRes, paymentRes] = await Promise.all([
-          api.get(`/student/enrollment/${user._id}/${id}`),
-          api.get(`/student/${user._id}/payment/${id}`)
-        ]);
-        setEnrollment(enrollmentRes.data);
-        setHasPayment(!!paymentRes.data);
+        try {
+          const [enrollmentRes, paymentRes] = await Promise.all([
+            api.get(`/student/${user._id}/enrollment/${id}`).catch(() => ({ data: null })), // Handle 404 gracefully
+            api.get(`/student/${user._id}/payment/${id}`).catch(() => ({ data: null })) // Handle 403 gracefully
+          ]);
+          setEnrollment(enrollmentRes.data);
+          setHasPayment(!!paymentRes.data);
+        } catch (error) {
+          // If enrollment/payment check fails, that's okay - user might not be enrolled yet
+          // Silently handle - these are expected errors for non-enrolled users
+        }
       }
     } catch (error) {
      showError('Error loading course data.');
@@ -77,15 +82,24 @@ const CourseDetail: React.FC = () => {
 
     // For free courses or already paid courses, enroll directly
     try {
-      const res = await api.post('/enrollments', {
-        user_id: user._id,
-        course_id: course._id,
-      });
+      const res = await api.post(`/student/${user._id}/enrollment/${course._id}`);
       setEnrollment(res.data);
-
       showSuccess('Successfully enrolled in course!');
-    } catch (error) {
-     showError('Error enrolling in course.');
+    } catch (error: any) {
+      // If already enrolled, refresh enrollment data instead of showing error
+      if (error.response?.status === 400 && error.response?.data?.msg?.includes('Already enrolled')) {
+        try {
+          const enrollmentRes = await api.get(`/student/${user._id}/enrollment/${course._id}`).catch(() => ({ data: null }));
+          if (enrollmentRes.data) {
+            setEnrollment(enrollmentRes.data);
+          }
+        } catch (e) {
+          // Ignore errors when refreshing enrollment
+        }
+      } else {
+        const errorMessage = error.response?.data?.msg || 'Error enrolling in course.';
+        showError(errorMessage);
+      }
     }
   };
 
@@ -93,23 +107,19 @@ const CourseDetail: React.FC = () => {
     if (!user || !course) return;
 
     try {
-      await api.post('/payments', {
-        user_id: user._id,
-        course_id: course._id,
-        amount: course.pricing,
+      await api.post(`/student/${user._id}/payment/${course._id}`, {
         status: 'completed',
-        transaction_id: paymentData.transaction_id,
+        transaction_id: paymentData.transaction_id || paymentData.id,
       });
 
-      const res = await api.post('/enrollments', {
-        user_id: user._id,
-        course_id: course._id,
-      });
+      const res = await api.post(`/student/${user._id}/enrollment/${course._id}`);
       
       setEnrollment(res.data);
       setHasPayment(true);
-    } catch (error) {
-     showError('Error processing payment.');
+      showSuccess('Payment successful! You are now enrolled in the course.');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.msg || 'Error processing payment.';
+      showError(errorMessage);
     }
   };
 
@@ -128,6 +138,23 @@ const CourseDetail: React.FC = () => {
 
   const formatPrice = (pricing: number) => {
     return pricing === 0 ? 'Free' : `$${pricing.toFixed(2)}`;
+  };
+
+  const getInstructorName = (course: Course): string => {
+    // Check if instructorName is directly available
+    if (course.instructorName) {
+      return course.instructorName;
+    }
+    // Check if instructorId is a populated object with name
+    const instructorId = course.instructorId;
+    if (instructorId && typeof instructorId === 'object') {
+      const instructorObj = instructorId as { name?: string };
+      if (instructorObj?.name) {
+        return instructorObj.name;
+      }
+    }
+    // Fallback if instructorId is just a string ID
+    return 'Unknown Instructor';
   };
 
   const isEnrolled = !!enrollment;
@@ -192,7 +219,7 @@ const CourseDetail: React.FC = () => {
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-400">
                 Created by <span className="font-medium text-gray-900 dark:text-white">
-                  {(course.instructorId as any).name}
+                  {getInstructorName(course)}
                 </span>
               </p>
             </div>

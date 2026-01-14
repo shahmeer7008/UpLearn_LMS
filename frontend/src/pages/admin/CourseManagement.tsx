@@ -42,7 +42,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { Course, Enrollment, Payment } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 import { showSuccess, showError } from '@/utils/toast';
 
 const CourseManagement: React.FC = () => {
@@ -66,14 +66,10 @@ const CourseManagement: React.FC = () => {
 
   const loadCourses = async () => {
     try {
-      const response = await axios.get('/api/admin/courses');
+      const response = await api.get('/admin/courses');
       setCourses(response.data);
-    } catch (error) {
-     if (axios.isAxiosError(error) && error.response) {
-       showError(error.response.data.message || 'An error occurred while loading courses.');
-     } else {
-       showError('An unexpected error occurred.');
-     }
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'An error occurred while loading courses.');
     } finally {
       setIsLoading(false);
     }
@@ -84,25 +80,32 @@ const CourseManagement: React.FC = () => {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(course =>
-        course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (course.instructorId as any).name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(course => {
+        const instructorName = (course.instructorId as any)?.name || '';
+        return (
+          (course.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (course.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          instructorName.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      });
     }
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(course => course.status === statusFilter);
+      filtered = filtered.filter(course => (course.status || 'pending') === statusFilter);
     }
 
     // Category filter
     if (categoryFilter !== 'all') {
-      filtered = filtered.filter(course => course.category === categoryFilter);
+      filtered = filtered.filter(course => (course.category || '') === categoryFilter);
     }
 
     // Sort by creation date (newest first)
-    filtered.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+    filtered.sort((a, b) => {
+      const dateA = a.createdDate ? new Date(a.createdDate).getTime() : 0;
+      const dateB = b.createdDate ? new Date(b.createdDate).getTime() : 0;
+      return dateB - dateA;
+    });
 
     setFilteredCourses(filtered);
   };
@@ -110,10 +113,10 @@ const CourseManagement: React.FC = () => {
   const handleCourseAction = async (courseId: string, action: 'approve' | 'reject' | 'archive' | 'delete', note?: string) => {
     try {
       if (action === 'delete') {
-        await axios.delete(`/api/admin/courses/${courseId}`);
+        await api.delete(`/admin/courses/${courseId}`);
       } else {
         const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'archived' : action;
-        await axios.put(`/api/admin/courses/${courseId}/status`, { status: newStatus, note });
+        await api.put(`/admin/courses/${courseId}/status`, { status: newStatus, note });
       }
       loadCourses();
       
@@ -142,23 +145,28 @@ const CourseManagement: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const getCategories = () => {
-    const categories = [...new Set(courses.map(course => course.category))];
+    const categories = [...new Set(courses.map(course => course.category).filter(Boolean))];
     return categories;
   };
 
   const getCourseOverview = () => {
     return {
       total: courses.length,
-      pending: courses.filter(c => c.status === 'pending').length,
+      pending: courses.filter(c => (c.status || 'pending') === 'pending').length,
       approved: courses.filter(c => c.status === 'approved').length,
       archived: courses.filter(c => c.status === 'archived').length
     };
@@ -312,33 +320,35 @@ const CourseManagement: React.FC = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
-                        <h3 className="text-xl font-semibold">{course.title}</h3>
-                        <Badge className={`text-xs ${getStatusColor(course.status)}`}>
-                          {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
+                        <h3 className="text-xl font-semibold">{course.title || 'Untitled Course'}</h3>
+                        <Badge className={`text-xs ${getStatusColor(course.status || 'pending')}`}>
+                          {(course.status || 'pending').charAt(0).toUpperCase() + (course.status || 'pending').slice(1)}
                         </Badge>
-                        <Badge variant="outline">{course.category}</Badge>
+                        {course.category && (
+                          <Badge variant="outline">{course.category}</Badge>
+                        )}
                       </div>
                       
                       <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                        {course.description}
+                        {course.description || 'No description available'}
                       </p>
 
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4 text-sm">
                         <div className="flex items-center space-x-2">
                           <Users className="h-4 w-4 text-gray-400" />
-                          <span>By {(course.instructorId as any).name}</span>
+                          <span>By {(course.instructorId as any)?.name || 'Unknown Instructor'}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <BookOpen className="h-4 w-4 text-gray-400" />
-                          <span>{course.duration} hours</span>
+                          <span>{course.duration || 0} hours</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Users className="h-4 w-4 text-gray-400" />
-                          <span>{course.enrollmentCount} enrolled</span>
+                          <span>{course.enrollmentCount || 0} enrolled</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <DollarSign className="h-4 w-4 text-gray-400" />
-                          <span>${course.pricing === 0 ? 'Free' : course.pricing.toFixed(2)}</span>
+                          <span>${course.pricing === 0 || !course.pricing ? 'Free' : course.pricing.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
@@ -347,10 +357,12 @@ const CourseManagement: React.FC = () => {
                       </div>
 
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        <div className="flex items-center space-x-1">
-                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span>{course.rating}</span>
-                        </div>
+                        {course.rating !== undefined && course.rating !== null && (
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                            <span>{course.rating}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

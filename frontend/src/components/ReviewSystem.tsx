@@ -41,13 +41,19 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ course_id, userEnrollment }
  const loadReviews = async () => {
    try {
      const res = await axios.get(`/api/reviews/course/${course_id}`);
-     setReviews(res.data);
+     setReviews(res.data || []);
 
      // Check if current user has already reviewed
-     const existingReview = res.data.find((r: Review) => r.user_id === user?._id);
+     const existingReview = res.data?.find((r: Review) => r.user_id === user?._id);
      setUserReview(existingReview || null);
-   } catch (error) {
-     console.error('Error loading reviews:', error);
+   } catch (error: any) {
+     // Handle 404 gracefully - reviews endpoint might not exist yet
+     if (error.response?.status === 404) {
+       setReviews([]);
+       setUserReview(null);
+     } else {
+       console.error('Error loading reviews:', error);
+     }
    }
  };
 
@@ -67,6 +73,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ course_id, userEnrollment }
          comment: newComment.trim(),
        });
        setReviews(prev => prev.map(r => r._id === userReview._id ? res.data : r));
+       setUserReview(res.data);
        showSuccess('Review updated successfully!');
      } else {
        // Add new review
@@ -77,23 +84,8 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ course_id, userEnrollment }
          comment: newComment.trim(),
        });
        setReviews(prev => [res.data, ...prev]);
+       setUserReview(res.data);
        showSuccess('Review submitted successfully!');
-     }
-
-     if (userReview) {
-       const res = await axios.put(`/api/reviews/${userReview._id}`, {
-         rating: newRating,
-         comment: newComment.trim(),
-       });
-       setUserReview(res.data);
-     } else {
-       const res = await axios.post('/api/reviews', {
-         user_id: user._id,
-         course_id,
-         rating: newRating,
-         comment: newComment.trim(),
-       });
-       setUserReview(res.data);
      }
       setNewRating(0);
       setNewComment('');

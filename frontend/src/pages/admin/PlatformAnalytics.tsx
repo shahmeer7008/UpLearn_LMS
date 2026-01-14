@@ -19,7 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Course, Enrollment, Payment, User } from '@/types';
-import axios from 'axios';
+import api from '@/services/api';
 
 interface PlatformStats {
  totalUsers: number;
@@ -55,16 +55,12 @@ const PlatformAnalytics: React.FC = () => {
 
   const loadPlatformStats = async () => {
     try {
-      const response = await axios.get('/api/admin/stats');
+      const response = await api.get('/admin/stats');
       const stats = response.data;
 
-     setPlatformStats(stats);
-   } catch (error) {
-     if (axios.isAxiosError(error) && error.response) {
-       console.error('Error loading platform stats:', error.response.data.message);
-     } else {
-       console.error('An unexpected error occurred.');
-     }
+      setPlatformStats(stats);
+    } catch (error: any) {
+      console.error('Error loading platform stats:', error.response?.data?.message || error.message);
     } finally {
       setIsLoading(false);
     }
@@ -221,33 +217,37 @@ const PlatformAnalytics: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {platformStats.topCategories.map((category, index) => (
-                  <div key={category.category} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                          {index + 1}
-                        </span>
+                {platformStats.topCategories && platformStats.topCategories.length > 0 ? (
+                  platformStats.topCategories.map((category, index) => (
+                    <div key={category.category} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{category.category}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {category.count} course{category.count !== 1 ? 's' : ''}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{category.category}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {category.count} course{category.count !== 1 ? 's' : ''}
-                        </p>
+                      <div className="text-right">
+                        <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ 
+                              width: `${(category.count / Math.max(...platformStats.topCategories.map(c => c.count))) * 100}%` 
+                            }}
+                          ></div>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ 
-                            width: `${(category.count / Math.max(...platformStats.topCategories.map(c => c.count))) * 100}%` 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">No categories found</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -296,23 +296,27 @@ const PlatformAnalytics: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {platformStats.recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        activity.type === 'enrollment' ? 'bg-green-500' :
-                        activity.type === 'course' ? 'bg-blue-500' :
-                        activity.type === 'completion' ? 'bg-purple-500' :
-                        activity.type === 'payment' ? 'bg-yellow-500' :
-                        'bg-gray-500'
-                      }`}></div>
+                {platformStats.recentActivity && platformStats.recentActivity.length > 0 ? (
+                  platformStats.recentActivity.map((activity, index) => (
+                    <div key={index} className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          activity.type === 'enrollment' ? 'bg-green-500' :
+                          activity.type === 'course' ? 'bg-blue-500' :
+                          activity.type === 'completion' ? 'bg-purple-500' :
+                          activity.type === 'payment' ? 'bg-yellow-500' :
+                          'bg-gray-500'
+                        }`}></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{activity.message}</p>
+                        <p className="text-xs text-gray-500">{activity.time}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{activity.message}</p>
-                      <p className="text-xs text-gray-500">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+                )}
               </div>
             </CardContent>
           </Card>

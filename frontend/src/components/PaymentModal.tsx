@@ -206,10 +206,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   <div className="flex-1">
                     <h3 className="font-medium">{course.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {course.category} • {course.modules.length} modules
+                      {course.category} • {(course.modules?.length || 0)} modules
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      By {course.instructorName}
+                      By {course.instructorName || 'Unknown Instructor'}
                     </p>
                   </div>
                   <div className="text-right">

@@ -123,6 +123,11 @@ const CreateCourse: React.FC = () => {
       showError('Please add at least one module');
       return;
     }
+    if (!user) {
+      showError('You must be logged in to create a course');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const newCourse = {
@@ -130,9 +135,9 @@ const CreateCourse: React.FC = () => {
         instructor_id: user._id,
         modules,
       };
-      await api.post('/courses', newCourse);
+      await api.post(`instructor/${user._id}/create-course`, newCourse);
       showSuccess('Course created successfully!');
-      navigate('/instructor/dashboard');
+      navigate('/instructor/InstructorDashboard');
     } catch (error) {
       // Error is handled by the axios interceptor
     } finally {

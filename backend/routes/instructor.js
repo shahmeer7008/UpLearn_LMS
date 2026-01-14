@@ -93,6 +93,32 @@ const validateInstructorAccess = (req, res, next) => {
   }
 };
 
+// @route   POST /api/instructor/:id/create-course
+// @desc    Create a new course
+// @access  Private (Instructor only)
+router.post('/:id/create-course', authenticate, authorize('instructor'), validateInstructorAccess, async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+    const courseData = req.body;
+    
+    // Ensure instructor_id matches the authenticated user
+    const course = {
+      ...courseData,
+      instructor_id: instructorId,
+      status: 'pending' // New courses start as pending
+    };
+    
+    const newCourse = await Course.create(course);
+    res.status(201).json(newCourse);
+  } catch (err) {
+    console.error('❌ Error in /create-course route:', err);
+    res.status(500).json({ 
+      msg: 'Error creating course', 
+      error: err.message 
+    });
+  }
+});
+
 // @route   GET /api/instructor/:id/courses
 // @desc    Get all courses for an instructor
 // @access  Private (Instructor only)
