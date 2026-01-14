@@ -40,8 +40,8 @@ const AdminDashboard: React.FC = () => {
     try {
       const [coursesRes, usersRes, paymentsRes] = await Promise.all([
         api.get('/courses'),
-        api.get('/users'),
-        api.get('/payments'),
+        api.get('/admin/users'),
+        api.get('/admin/payments'),
       ]);
       setAllCourses(coursesRes.data);
       setPendingCourses(coursesRes.data.filter((c: Course) => c.status === 'pending'));
