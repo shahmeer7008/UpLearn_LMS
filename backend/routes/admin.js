@@ -1,38 +1,49 @@
 const express = require('express');
 const router = express.Router();
-const { authorize } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const Payment = require('../models/Payment');
 
+// Protect all admin routes with authentication
+router.use(authenticate);
+
 // GET /api/admin/stats - Fetch platform statistics
 router.get('/stats', authorize('admin'), async (req, res) => {
   try {
+    console.log('Fetching platform statistics');
     const totalUsers = await User.countDocuments();
+    console.log('Total users:', totalUsers);
     const totalCourses = await Course.countDocuments();
+    console.log('Total courses:', totalCourses);
     const totalEnrollments = await Enrollment.countDocuments();
+    console.log('Total enrollments:', totalEnrollments);
     const totalRevenue = await Payment.aggregate([
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
+    console.log('Total revenue:', totalRevenue);
     const pendingCourses = await Course.countDocuments({ status: 'pending' });
+    console.log('Pending courses:', pendingCourses);
     const activeUsers = await User.countDocuments({ status: 'active' });
-
+    console.log('Active users:', activeUsers);
     const topCategories = await Course.aggregate([
       { $group: { _id: '$category', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 5 },
       { $project: { category: '$_id', count: 1, _id: 0 } },
     ]);
-
+    console.log('Top categories:', topCategories);
     const completedEnrollments = await Enrollment.countDocuments({ completionStatus: 'completed' });
+    console.log('Completed enrollments:', completedEnrollments);
     const completionRate = totalEnrollments > 0 ? (completedEnrollments / totalEnrollments) * 100 : 0;
-
+    console.log('Completion rate:', completionRate);
+    console.log('Platform statistics fetched successfully');
     res.json({
       totalUsers,
       totalCourses,
       totalEnrollments,
-      totalRevenue: totalRevenue.length > 0 ? totalRevenue.total : 0,
+      totalRevenue: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
       pendingCourses,
       activeUsers,
       topCategories,
@@ -51,6 +62,20 @@ router.get('/users', authorize('admin'), async (req, res) => {
     const users = await User.find();
     res.json(users);
   } catch (error) {
+    res.status(500).send('Server error');
+  }
+});
+
+// GET /api/admin/payments - Fetch all payments
+router.get('/payments', authorize('admin'), async (req, res) => {
+  try {
+    const payments = await Payment.find()
+      .populate('user_id', 'name email')
+      .populate('course_id', 'title pricing')
+      .sort({ _id: -1 }); // Sort by _id descending (most recent first)
+    res.json(payments);
+  } catch (error) {
+    console.error('Error fetching payments:', error);
     res.status(500).send('Server error');
   }
 });

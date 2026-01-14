@@ -9,6 +9,7 @@ const port = process.env.PORT || 5000;
 // CORS configuration
 const corsOptions = {
   origin: process.env.CORS_ORIGIN,
+  credentials: true,
 };
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -29,6 +30,7 @@ app.get('/api/healthz', (req, res) => {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/instructor', require('./routes/instructor'));
